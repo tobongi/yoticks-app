@@ -1,89 +1,168 @@
-import { View, Text, TextInput, ScrollView, Pressable, StyleSheet } from 'react-native';
+import { useEffect, useMemo, useState } from 'react';
+import { ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { router, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { router } from 'expo-router';
+import { searchEvents, type BackendSearchResponse } from '../../src/backend';
+import { useAuth } from '../../src/auth';
+import { useLiveRefresh } from '../../src/live-refresh';
+import { FlameIcon, PinIcon, SearchIcon } from '../../src/icons';
 import { colors } from '../../src/theme/colors';
 import { typography } from '../../src/theme/typography';
+import { Chip, HeroPanel, InlineScroll, LivedBackground, ScreenHeader, SectionBlock, VisualCard } from '../../src/ui/lived-in';
+import { SavedEventButton } from '../../src/saved-event-button';
 
-const CITIES = [
-  { id: 'kin', label: 'Kinshasa', emoji: '🇨🇩', count: 42 },
-  { id: 'abj', label: 'Abidjan', emoji: '🇨🇮', count: 28 },
-  { id: 'dkr', label: 'Dakar', emoji: '🇸🇳', count: 21 },
-  { id: 'dla', label: 'Douala', emoji: '🇨🇲', count: 15 },
-  { id: 'lbv', label: 'Libreville', emoji: '🇬🇦', count: 12 },
-  { id: 'nbi', label: 'Nairobi', emoji: '🇰🇪', count: 34 },
-];
+const EMPTY_SEARCH: BackendSearchResponse = {
+  query: '',
+  queryWords: [],
+  normalizedQuery: '',
+  suggestions: [],
+  results: [],
+  facets: { categories: [], cities: [] },
+};
 
-const TRENDING = [
-  { id: 't1', query: 'Jazz Festival' },
-  { id: 't2', query: 'Forum Africa CEO' },
-  { id: 't3', query: 'Concert Gospel' },
-  { id: 't4', query: 'Soirée Électro' },
-  { id: 't5', query: 'Match Football' },
-];
+export default function SearchScreen() {
+  const params = useLocalSearchParams<{ query?: string }>();
+  const { token } = useAuth();
+  const [query, setQuery] = useState('');
+  const [data, setData] = useState<BackendSearchResponse>(EMPTY_SEARCH);
+  const refreshTick = useLiveRefresh(3000);
 
-export default function Search() {
+  useEffect(() => {
+    if (typeof params.query === 'string') {
+      setQuery(params.query);
+    }
+  }, [params.query]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const handle = setTimeout(() => {
+      searchEvents(query, token ?? undefined).then((next) => {
+        if (!cancelled) {
+          setData(next);
+        }
+      });
+    }, 150);
+    return () => {
+      cancelled = true;
+      clearTimeout(handle);
+    };
+  }, [query, refreshTick, token]);
+
+  const chips = useMemo(() => data.suggestions.slice(0, 6), [data.suggestions]);
+  const cities = useMemo(() => data.facets.cities.slice(0, 6), [data.facets.cities]);
+  const trends = useMemo(() => data.facets.categories.slice(0, 6), [data.facets.categories]);
+
+  const openSearch = (value: string) => {
+    setQuery(value);
+    router.replace({ pathname: '/search', params: { query: value } });
+  };
+
   return (
     <SafeAreaView style={styles.safeArea}>
-      <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-        <Text style={styles.pageTitle}>Recherche</Text>
+      <LivedBackground />
+      <ScrollView style={styles.container} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <ScreenHeader eyebrow="Explorer" title="Trouver vite" />
 
-        <View style={styles.searchBar}>
-          <Text style={styles.searchIcon}>🔍</Text>
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Event, artiste, ville..."
-            placeholderTextColor={colors.textMuted}
-            autoFocus
-          />
-        </View>
-
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Tendances</Text>
-          <View style={styles.trendingList}>
-            {TRENDING.map((t) => (
-              <Pressable key={t.id} style={styles.trendingItem}>
-                <Text style={styles.trendingIcon}>🔥</Text>
-                <Text style={styles.trendingText}>{t.query}</Text>
-                <Text style={styles.trendingArrow}>→</Text>
-              </Pressable>
-            ))}
+        <HeroPanel eyebrow="Recherche" title={query ? query : 'Nom, ville, style'} subtitle={`${data.results.length} resultats`} art={<SearchIcon size={34} color={colors.orange} />}>
+          <View style={styles.searchBar}>
+            <SearchIcon size={18} color={colors.textMuted} />
+            <TextInput
+              style={styles.searchInput}
+              value={query}
+              onChangeText={setQuery}
+              placeholder="Chercher"
+              placeholderTextColor={colors.textMuted}
+              autoFocus
+            />
           </View>
-        </View>
+        </HeroPanel>
 
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Explorer par ville</Text>
-          <View style={styles.citiesGrid}>
-            {CITIES.map((city) => (
-              <Pressable key={city.id} style={styles.cityCard}>
-                <Text style={styles.cityEmoji}>{city.emoji}</Text>
-                <Text style={styles.cityName}>{city.label}</Text>
-                <Text style={styles.cityCount}>{city.count} events</Text>
-              </Pressable>
-            ))}
+        {!!chips.length && (
+          <SectionBlock eyebrow="Mots" title="Essayer">
+            <InlineScroll>
+              {chips.map((chip) => (
+                <Chip key={chip} label={chip} onPress={() => openSearch(chip)} />
+              ))}
+            </InlineScroll>
+          </SectionBlock>
+        )}
+
+        {!!trends.length && (
+          <SectionBlock eyebrow="Chaud" title="Tendances">
+            <View style={styles.iconStack}>
+              {trends.map((item) => (
+                <Chip key={item.label} label={`${item.label} ${item.count}`} onPress={() => openSearch(item.label)} />
+              ))}
+            </View>
+          </SectionBlock>
+        )}
+
+        {!!cities.length && (
+          <SectionBlock eyebrow="Lieu" title="Villes">
+            <InlineScroll>
+              {cities.map((city) => (
+                <Chip key={city.label} label={`${city.label} ${city.count}`} onPress={() => openSearch(city.label)} />
+              ))}
+            </InlineScroll>
+          </SectionBlock>
+        )}
+
+        <SectionBlock eyebrow="Resultats" title={query ? 'Ce qui sort' : 'A ouvrir'}>
+          <View style={styles.stack}>
+            {data.results.length > 0 ? (
+              data.results.map((event) => (
+                <VisualCard
+                  key={event.id}
+                  title={event.title}
+                  subtitle={event.category}
+                  meta={`${event.location} • ${event.date}`}
+                  imageUrl={event.imageUrl}
+                  badge={event.price}
+                  onPress={() => router.push({ pathname: '/event/[id]', params: { id: event.id } })}
+                  right={<SavedEventButton compact eventId={event.id} />}
+                />
+              ))
+            ) : (
+              <View style={styles.emptyCard}>
+                <FlameIcon size={26} color={colors.orange} />
+                <Text style={styles.emptyTitle}>Rien ici</Text>
+                <Text style={styles.emptyCopy}>Essaie une ville, un style, ou un nom plus court.</Text>
+              </View>
+            )}
           </View>
-        </View>
+        </SectionBlock>
+
+        {!!data.followedOrganizerEvents?.length && (
+          <SectionBlock eyebrow="Follow" title="Createurs suivis">
+            <View style={styles.stack}>
+              {data.followedOrganizerEvents.slice(0, 4).map((event) => (
+                <VisualCard
+                  key={`f-${event.id}`}
+                  title={event.title}
+                  subtitle={event.organizer}
+                  meta={`${event.location} • ${event.date}`}
+                  imageUrl={event.imageUrl}
+                  badge={event.price}
+                  onPress={() => router.push({ pathname: '/event/[id]', params: { id: event.id } })}
+                />
+              ))}
+            </View>
+          </SectionBlock>
+        )}
       </ScrollView>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: colors.bg },
-  container: { flex: 1, paddingHorizontal: 20, paddingTop: 16 },
-  pageTitle: { fontFamily: typography.fontFamily.bold, fontSize: typography.fontSize['2xl'], color: colors.text, marginBottom: 20 },
-  searchBar: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.card, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12, borderWidth: 1, borderColor: colors.border, marginBottom: 28, gap: 10 },
-  searchIcon: { fontSize: 16 },
-  searchInput: { flex: 1, fontFamily: typography.fontFamily.regular, fontSize: typography.fontSize.base, color: colors.text },
-  section: { marginBottom: 32 },
-  sectionTitle: { fontFamily: typography.fontFamily.bold, fontSize: typography.fontSize.lg, color: colors.text, marginBottom: 16 },
-  trendingList: { gap: 8 },
-  trendingItem: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.card, borderRadius: 12, padding: 14, borderWidth: 1, borderColor: colors.border, gap: 12 },
-  trendingIcon: { fontSize: 18 },
-  trendingText: { flex: 1, fontFamily: typography.fontFamily.medium, fontSize: typography.fontSize.base, color: colors.text },
-  trendingArrow: { fontFamily: typography.fontFamily.regular, fontSize: typography.fontSize.base, color: colors.textMuted },
-  citiesGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
-  cityCard: { width: '47%', backgroundColor: colors.card, borderRadius: 12, padding: 16, borderWidth: 1, borderColor: colors.border, gap: 4 },
-  cityEmoji: { fontSize: 28, marginBottom: 4 },
-  cityName: { fontFamily: typography.fontFamily.semiBold, fontSize: typography.fontSize.base, color: colors.text },
-  cityCount: { fontFamily: typography.fontFamily.regular, fontSize: typography.fontSize.xs, color: colors.textMuted },
+  safeArea: { flex: 1, backgroundColor: colors.bgDeep },
+  container: { flex: 1 },
+  content: { paddingHorizontal: 18, paddingTop: 14, paddingBottom: 110, gap: 18 },
+  searchBar: { flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 18, backgroundColor: colors.cardStrong, borderWidth: 1, borderColor: colors.border, paddingHorizontal: 14, paddingVertical: 12 },
+  searchInput: { flex: 1, fontFamily: typography.fontFamily.medium, fontSize: typography.fontSize.base, color: colors.text },
+  iconStack: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  stack: { gap: 12 },
+  emptyCard: { borderRadius: 24, padding: 18, borderWidth: 1, borderColor: colors.borderStrong, backgroundColor: colors.card, gap: 10, alignItems: 'flex-start' },
+  emptyTitle: { fontFamily: typography.fontFamily.bold, fontSize: typography.fontSize.lg, color: colors.text },
+  emptyCopy: { fontFamily: typography.fontFamily.medium, fontSize: typography.fontSize.sm, color: colors.textSecondary },
 });

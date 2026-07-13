@@ -1,0 +1,155 @@
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { router } from 'expo-router';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { colors } from '../../src/theme/colors';
+import { organizerColors } from '../../src/theme/organizer';
+import { shadow } from '../../src/theme/shadows';
+import { typography } from '../../src/theme/typography';
+import { useAuth } from '../../src/auth';
+
+export default function OrganizerProfile() {
+  const { user, signOut } = useAuth();
+
+  const initials = (user?.name ?? 'Organizer')
+    .split(' ')
+    .filter(Boolean)
+    .map((part) => part[0])
+    .slice(0, 2)
+    .join('')
+    .toUpperCase();
+
+  return (
+    <SafeAreaView style={styles.safeArea}>
+      <ScrollView style={styles.container} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <Text style={styles.kicker}>Organizer account</Text>
+        <Text style={styles.title}>Account, brand, and workflow settings.</Text>
+
+        <View style={styles.profileCard}>
+          <View style={styles.avatar}>
+            <Text style={styles.avatarText}>{initials}</Text>
+          </View>
+          <View style={styles.profileCopy}>
+            <Text style={styles.name}>{user?.name}</Text>
+            <Text style={styles.email}>{user?.email}</Text>
+            <View style={styles.rolePill}>
+              <Text style={styles.roleText}>Organizer mode</Text>
+            </View>
+          </View>
+        </View>
+
+        <View style={styles.actionList}>
+          <Action
+            label="Brand kit"
+            value="YoTicks organizer"
+            onPress={() => router.push('/(organizer)/brand-kit' as never)}
+          />
+          <Action label="Payouts" value="Configured" onPress={() => router.push('/(organizer)/payouts' as never)} />
+          <Action label="Support" value="Live line" onPress={() => router.push('/(organizer)/support' as never)} />
+        </View>
+
+        <Pressable
+          style={styles.logout}
+          onPress={() => {
+            signOut();
+            router.replace('/auth/login');
+          }}
+        >
+          <Text style={styles.logoutText}>Sign out</Text>
+        </Pressable>
+      </ScrollView>
+    </SafeAreaView>
+  );
+}
+
+function Action({ label, value, onPress }: { label: string; value: string; onPress: () => void }) {
+  return (
+    <Pressable style={styles.actionCard} onPress={onPress}>
+      <View style={styles.actionCopy}>
+        <Text style={styles.actionLabel}>{label}</Text>
+        <Text style={styles.actionValue}>{value}</Text>
+      </View>
+      <Text style={styles.actionArrow}>›</Text>
+    </Pressable>
+  );
+}
+
+const styles = StyleSheet.create({
+  safeArea: { flex: 1, backgroundColor: organizerColors.background },
+  container: { flex: 1 },
+  content: { paddingHorizontal: 18, paddingTop: 14, paddingBottom: 26, gap: 16 },
+  kicker: {
+    fontFamily: typography.fontFamily.medium,
+    fontSize: typography.fontSize.xs,
+    color: colors.orange,
+    textTransform: 'uppercase',
+    letterSpacing: 2.4,
+  },
+  title: { fontFamily: typography.fontFamily.bold, fontSize: 28, lineHeight: 34, color: organizerColors.text },
+  profileCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    padding: 18,
+    borderRadius: 28,
+    backgroundColor: organizerColors.surface,
+    borderWidth: 1,
+    borderColor: organizerColors.border,
+    ...shadow({ color: '#000', opacity: 0.06, radius: 18, offset: { width: 0, height: 8 }, elevation: 3 }),
+  },
+  avatar: {
+    width: 58,
+    height: 58,
+    borderRadius: 29,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.orange,
+  },
+  avatarText: { fontFamily: typography.fontFamily.bold, fontSize: typography.fontSize.lg, color: colors.black },
+  profileCopy: { flex: 1, gap: 4 },
+  name: { fontFamily: typography.fontFamily.bold, fontSize: typography.fontSize.md, color: organizerColors.text },
+  email: { fontFamily: typography.fontFamily.regular, fontSize: typography.fontSize.sm, color: organizerColors.textSecondary },
+  rolePill: {
+    alignSelf: 'flex-start',
+    marginTop: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 999,
+    backgroundColor: organizerColors.warningSoft,
+  },
+  roleText: {
+    fontFamily: typography.fontFamily.medium,
+    fontSize: typography.fontSize.xs,
+    color: colors.orange,
+    textTransform: 'uppercase',
+    letterSpacing: 1.2,
+  },
+  actionList: { gap: 10 },
+  actionCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 16,
+    borderRadius: 20,
+    backgroundColor: organizerColors.surface,
+    borderWidth: 1,
+    borderColor: organizerColors.border,
+  },
+  actionCopy: { gap: 4 },
+  actionLabel: { fontFamily: typography.fontFamily.medium, fontSize: typography.fontSize.sm, color: organizerColors.text },
+  actionValue: {
+    fontFamily: typography.fontFamily.regular,
+    fontSize: typography.fontSize.xs,
+    color: organizerColors.textSecondary,
+  },
+  actionArrow: { fontFamily: typography.fontFamily.bold, fontSize: 24, color: colors.orange, lineHeight: 24 },
+  logout: {
+    marginTop: 6,
+    alignItems: 'center',
+    paddingVertical: 14,
+    borderRadius: 16,
+    backgroundColor: organizerColors.accentSoft,
+    borderWidth: 1,
+    borderColor: organizerColors.borderStrong,
+  },
+  logoutText: { fontFamily: typography.fontFamily.bold, fontSize: typography.fontSize.sm, color: colors.orange },
+});

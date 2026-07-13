@@ -4,16 +4,25 @@
   "main": "index.ts",
   "dependencies": {
     "@expo-google-fonts/poppins": "^0.4.1",
-    "expo": "~56.0.8",
-    "expo-constants": "^56.0.16",
+    "@react-native-async-storage/async-storage": "2.2.0",
+    "expo": "~56.0.13",
+    "expo-camera": "~56.0.8",
+    "expo-constants": "~56.0.19",
+    "expo-file-system": "~56.0.8",
     "expo-font": "^56.0.5",
+    "expo-image-picker": "~56.0.19",
     "expo-linking": "^56.0.13",
-    "expo-router": "^56.2.8",
+    "expo-notifications": "~56.0.19",
+    "expo-router": "~56.2.12",
     "expo-status-bar": "~56.0.4",
     "react": "19.2.3",
+    "react-dom": "19.2.3",
     "react-native": "0.85.3",
-    "react-native-safe-area-context": "^5.8.0",
-    "react-native-screens": "^4.25.2"
+    "react-native-qrcode-svg": "^6.3.21",
+    "react-native-safe-area-context": "~5.7.0",
+    "react-native-screens": "^4.25.2",
+    "react-native-svg": "15.15.4",
+    "react-native-web": "^0.21.2"
   },
   "devDependencies": {
     "@types/react": "~19.2.2",
@@ -23,7 +32,12 @@
     "start": "expo start",
     "android": "expo start --android",
     "ios": "expo start --ios",
-    "web": "expo start --web"
+    "web": "expo start --web",
+    "test": "npm --prefix server exec tsx --test ./src/live-refresh.test.ts && npm --prefix server exec tsx --test ./src/recommendations.test.ts && npm --prefix server exec tsx --test ./src/reservation-flow.test.ts && npm --prefix server exec tsx --test ./src/i18n.test.ts && npm --prefix server exec tsx --test ./src/provider-users.test.ts && npm --prefix server exec tsx --test ./src/event-detail.test.ts && npm --prefix server exec tsx --test ./src/city-pulse.test.ts && npm --prefix server exec tsx --test ./src/saved-events.test.ts && npm --prefix server exec tsx --test ./src/notifications.test.ts && npm --prefix server exec tsx --test ./src/routing.test.ts && npm --prefix server exec tsx --test ./server/src/lib/venue-image.test.ts && npm --prefix server exec tsx --test ./server/src/lib/seed-database.test.ts && npm --prefix server exec tsx --test ./server/src/routes/saved.test.ts && npm --prefix server exec tsx --test ./server/src/e2e.test.ts && npm --prefix server exec tsx --test ./server/src/product-upgrade.e2e.test.ts",
+    "server:dev": "npm --prefix server run dev",
+    "server:build": "npm --prefix server run build",
+    "server:db:setup": "npm --prefix server run db:setup",
+    "server:db:seed": "npm --prefix server run db:seed"
   },
   "private": true
 }

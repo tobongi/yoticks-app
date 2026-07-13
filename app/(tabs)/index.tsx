@@ -1,146 +1,205 @@
-import { ScrollView, View, Text, Pressable, StyleSheet, TextInput } from 'react-native';
+import { useEffect, useMemo, useState } from 'react';
+import { ImageBackground, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { FALLBACK_EVENTS, getHomeData, listEvents, type BackendEvent } from '../../src/backend';
+import { useAuth } from '../../src/auth';
+import { buildHomeDigest } from '../../src/app-redesign';
+import { getOnboardingPreferences, saveOnboardingPreferences, type OnboardingPreferences } from '../../src/onboarding-prefs';
+import { getCityKey } from '../../src/cities';
+import { useLiveRefresh } from '../../src/live-refresh';
+import { CalendarIcon, MapIcon, SearchIcon, SparkIcon, TicketIcon } from '../../src/icons';
+import { SavedEventButton } from '../../src/saved-event-button';
 import { colors } from '../../src/theme/colors';
 import { typography } from '../../src/theme/typography';
-
-const CATEGORIES = [
-  { id: 'all', label: 'Tous' },
-  { id: 'concerts', label: '🎵 Concerts' },
-  { id: 'conferences', label: '🎤 Conférences' },
-  { id: 'soirees', label: '🌙 Soirées' },
-  { id: 'festivals', label: '🎪 Festivals' },
-  { id: 'sport', label: '⚽ Sport' },
-];
-
-const FEATURED_EVENTS = [
-  { id: '1', title: 'Kinshasa Jazz Festival', date: '15 Juin 2026', location: 'Kinshasa, RDC', category: 'Concerts', price: '5 000 FC', color: colors.orange },
-  { id: '2', title: 'Africa CEO Forum', date: '22 Juin 2026', location: 'Abidjan, CI', category: 'Conférences', price: '25 000 FC', color: colors.red },
-  { id: '3', title: 'Nuit Électro Dakar', date: '28 Juin 2026', location: 'Dakar, SN', category: 'Soirées', price: '3 000 FC', color: colors.green },
-];
-
-const UPCOMING_EVENTS = [
-  { id: '4', title: 'Tournoi de Football Communautaire', date: '5 Juil 2026', location: 'Kinshasa', price: 'Gratuit' },
-  { id: '5', title: 'Salon de la Mode Africaine', date: '12 Juil 2026', location: 'Douala', price: '8 000 FC' },
-  { id: '6', title: 'Concert Gospel Gratitude', date: '19 Juil 2026', location: 'Libreville', price: '2 500 FC' },
-  { id: '7', title: 'Forum Jeunesse & Innovation', date: '26 Juil 2026', location: 'Nairobi', price: 'Gratuit' },
-];
+import { ActionTile, Chip, HeroPanel, LivedBackground, ScreenHeader, SectionBlock, StatRow, VisualCard } from '../../src/ui/lived-in';
+import { usePhoneLayout } from '../../src/ui/responsive';
 
 export default function Home() {
+  const { token, user } = useAuth();
+  const [events, setEvents] = useState<BackendEvent[]>(FALLBACK_EVENTS);
+  const [featured, setFeatured] = useState<BackendEvent[]>(FALLBACK_EVENTS.slice(0, 3));
+  const [upcoming, setUpcoming] = useState<BackendEvent[]>(FALLBACK_EVENTS.slice(0, 6));
+  const [prefs, setPrefs] = useState<OnboardingPreferences | null>(null);
+  const [selectedCity, setSelectedCity] = useState<string | null>(null);
+  const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  const refreshTick = useLiveRefresh(2500);
+  const layout = usePhoneLayout();
+
+  useEffect(() => {
+    getOnboardingPreferences().then((next) => {
+      setPrefs(next);
+      setSelectedCity(next?.city ?? null);
+      setSelectedCategory(next?.interests[0] ?? 'all');
+    });
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    Promise.all([listEvents(), getHomeData(token ?? undefined, selectedCity ?? undefined)]).then(([nextEvents, home]) => {
+      if (!active) {
+        return;
+      }
+      setEvents(nextEvents);
+      setFeatured(home.featuredEvents);
+      setUpcoming(home.upcomingEvents);
+    });
+    return () => {
+      active = false;
+    };
+  }, [refreshTick, selectedCity, token]);
+
+  const filtered = useMemo(() => {
+    return events.filter((event) => {
+      const cityMatch = !selectedCity || getCityKey(event.location) === getCityKey(selectedCity);
+      const categoryMatch = selectedCategory === 'all' || event.category.toLowerCase() === selectedCategory.toLowerCase();
+      return cityMatch && categoryMatch;
+    });
+  }, [events, selectedCategory, selectedCity]);
+
+  const digest = useMemo(() => buildHomeDigest(filtered, featured, upcoming), [featured, filtered, upcoming]);
+  const spotlight = digest.spotlight ?? filtered[0] ?? events[0];
+  const cityOptions = useMemo(() => ['Tout', ...Array.from(new Set(events.map((event) => event.location))).slice(0, 5)], [events]);
+  const categoryOptions = useMemo(() => ['all', ...digest.categories.slice(0, 5).map((item) => item.label)], [digest.categories]);
+
+  const persistPrefs = async (city: string | null, category: string) => {
+    const nextPrefs: OnboardingPreferences = {
+      interests: category === 'all' ? [] : [category.toLowerCase()],
+      city,
+      savedAt: new Date().toISOString(),
+    };
+    setPrefs(nextPrefs);
+    await saveOnboardingPreferences({ interests: nextPrefs.interests, city: nextPrefs.city });
+  };
+
+  const title = user?.name ? `Salut ${user.name.split(' ')[0]}` : 'Salut';
+
   return (
     <SafeAreaView style={styles.safeArea}>
-      <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-        {/* Header */}
-        <View style={styles.header}>
-          <View>
-            <Text style={styles.greeting}>Bonjour 👋</Text>
-            <Text style={styles.tagline}>Que vas-tu vivre aujourd'hui ?</Text>
-          </View>
-          <View style={styles.avatar}>
-            <Text style={styles.avatarText}>JD</Text>
-          </View>
-        </View>
+      <LivedBackground />
+      <ScrollView
+        style={styles.container}
+        contentContainerStyle={[styles.content, { paddingHorizontal: layout.screenPadding, paddingBottom: layout.isCompact ? 96 : 110, gap: layout.sectionGap }]}
+        showsVerticalScrollIndicator={false}
+      >
+        <ScreenHeader eyebrow={selectedCity ?? prefs?.city ?? 'Partout'} title={title} side={<View style={styles.mark}><Text style={styles.markText}>YT</Text></View>} />
 
-        {/* Search bar */}
-        <View style={styles.searchBar}>
-          <Text style={styles.searchIcon}>🔍</Text>
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Rechercher un event, une ville..."
-            placeholderTextColor={colors.textMuted}
-          />
-        </View>
-
-        {/* Categories */}
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.categories} contentContainerStyle={styles.categoriesContent}>
-          {CATEGORIES.map((cat) => (
-            <Pressable key={cat.id} style={[styles.chip, cat.id === 'all' && styles.chipActive]}>
-              <Text style={[styles.chipText, cat.id === 'all' && styles.chipTextActive]}>{cat.label}</Text>
+        <HeroPanel
+          eyebrow="Ce soir"
+          title={spotlight?.title ?? 'Sortir sans chercher'}
+          subtitle={spotlight ? `${spotlight.location} • ${spotlight.date}` : 'Concerts, talks, sport, food'}
+          art={<SparkIcon size={38} color={colors.orange} />}
+        >
+          <StatRow items={digest.stats} />
+          <View style={styles.heroActions}>
+            <Pressable style={styles.primaryButton} onPress={() => spotlight && router.push({ pathname: '/event/[id]', params: { id: spotlight.id } })}>
+              <Text style={styles.primaryButtonText}>Voir</Text>
             </Pressable>
-          ))}
-        </ScrollView>
+            <Pressable style={styles.secondaryButton} onPress={() => router.push('/(tabs)/search')}>
+              <Text style={styles.secondaryButtonText}>Chercher</Text>
+            </Pressable>
+          </View>
+        </HeroPanel>
 
-        {/* Featured */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>À la une</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.featuredList}>
-            {FEATURED_EVENTS.map((event) => (
-              <Pressable key={event.id} style={[styles.featuredCard, { borderTopColor: event.color }]} onPress={() => router.push(`/event/${event.id}`)}>
-                <View style={[styles.featuredBadge, { backgroundColor: event.color + '22' }]}>
-                  <Text style={[styles.featuredBadgeText, { color: event.color }]}>{event.category}</Text>
-                </View>
-                <Text style={styles.featuredTitle}>{event.title}</Text>
-                <Text style={styles.featuredDate}>📅 {event.date}</Text>
-                <Text style={styles.featuredLocation}>📍 {event.location}</Text>
-                <View style={styles.featuredFooter}>
-                  <Text style={styles.featuredPrice}>{event.price}</Text>
-                  <Text style={styles.featuredCta}>Voir →</Text>
-                </View>
+        <View style={styles.tileGrid}>
+          <ActionTile icon={<SearchIcon size={20} color={colors.orange} />} label="Trouver" hint="Par lieu" style={{ width: layout.tileWidth }} onPress={() => router.push('/(tabs)/search')} />
+          <ActionTile icon={<TicketIcon size={20} color={colors.green} />} label="Mes QR" hint="Billets" tone="green" style={{ width: layout.tileWidth }} onPress={() => router.push('/(tabs)/tickets')} />
+          <ActionTile icon={<MapIcon size={20} color={colors.black} />} label="Pres de moi" hint={selectedCity ?? 'Toutes villes'} tone="yellow" style={{ width: layout.tileWidth }} onPress={() => router.push('/(tabs)/search')} />
+        </View>
+
+        <SectionBlock eyebrow="Filtres" title="Choix rapides">
+          <View style={styles.chipWrap}>
+            {cityOptions.map((city) => {
+              const active = (city === 'Tout' && !selectedCity) || city === selectedCity;
+              return (
+                <Chip
+                  key={city}
+                  label={city}
+                  active={active}
+                  onPress={() => {
+                    const nextCity = city === 'Tout' ? null : city;
+                    setSelectedCity(nextCity);
+                    void persistPrefs(nextCity, selectedCategory);
+                  }}
+                />
+              );
+            })}
+          </View>
+          <View style={styles.chipWrap}>
+            {categoryOptions.map((category) => (
+              <Chip
+                key={category}
+                label={category === 'all' ? 'Tout' : category}
+                active={selectedCategory === category}
+                onPress={() => {
+                  setSelectedCategory(category);
+                  void persistPrefs(selectedCity, category);
+                }}
+              />
+            ))}
+          </View>
+        </SectionBlock>
+
+        <SectionBlock eyebrow="Pour toi" title="A voir">
+          <View style={styles.stack}>
+            {filtered.slice(0, 5).map((event) => (
+              <VisualCard
+                key={event.id}
+                title={event.title}
+                subtitle={event.category}
+                meta={`${event.location} • ${event.date}`}
+                imageUrl={event.imageUrl}
+                badge={event.price}
+                onPress={() => router.push({ pathname: '/event/[id]', params: { id: event.id } })}
+                right={<SavedEventButton compact eventId={event.id} />}
+              />
+            ))}
+          </View>
+        </SectionBlock>
+
+        <SectionBlock eyebrow="Bientot" title="Petite selection">
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.rail}>
+            {featured.slice(0, 6).map((event) => (
+              <Pressable key={event.id} style={[styles.poster, { width: layout.featuredPosterWidth }]} onPress={() => router.push({ pathname: '/event/[id]', params: { id: event.id } })}>
+                <ImageBackground source={{ uri: event.imageUrl }} style={[styles.posterImage, { height: layout.featuredPosterHeight }]} imageStyle={styles.posterImageInner}>
+                  <View style={styles.posterShade} />
+                  <Text style={styles.posterCategory}>{event.category}</Text>
+                  <Text style={styles.posterTitle} numberOfLines={2}>{event.title}</Text>
+                  <View style={styles.posterMeta}>
+                    <CalendarIcon size={12} color={colors.bg} />
+                    <Text style={styles.posterMetaText}>{event.date}</Text>
+                  </View>
+                </ImageBackground>
               </Pressable>
             ))}
           </ScrollView>
-        </View>
-
-        {/* Upcoming */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Prochainement</Text>
-          <View style={styles.upcomingList}>
-            {UPCOMING_EVENTS.map((event) => (
-              <Pressable key={event.id} style={styles.upcomingCard} onPress={() => router.push(`/event/${event.id}`)}>
-                <View style={styles.upcomingDateBox}>
-                  <Text style={styles.upcomingDateDay}>{event.date.split(' ')[0]}</Text>
-                  <Text style={styles.upcomingDateMonth}>{event.date.split(' ')[1]}</Text>
-                </View>
-                <View style={styles.upcomingInfo}>
-                  <Text style={styles.upcomingTitle}>{event.title}</Text>
-                  <Text style={styles.upcomingLocation}>📍 {event.location}</Text>
-                </View>
-                <Text style={styles.upcomingPrice}>{event.price}</Text>
-              </Pressable>
-            ))}
-          </View>
-        </View>
+        </SectionBlock>
       </ScrollView>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: colors.bg },
-  container: { flex: 1, paddingHorizontal: 20 },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingTop: 16, marginBottom: 20 },
-  greeting: { fontFamily: typography.fontFamily.regular, fontSize: typography.fontSize.sm, color: colors.textSecondary },
-  tagline: { fontFamily: typography.fontFamily.bold, fontSize: typography.fontSize.xl, color: colors.text, marginTop: 2 },
-  avatar: { width: 40, height: 40, borderRadius: 20, backgroundColor: colors.orange, alignItems: 'center', justifyContent: 'center' },
-  avatarText: { fontFamily: typography.fontFamily.bold, fontSize: typography.fontSize.sm, color: colors.black },
-  searchBar: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.card, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12, borderWidth: 1, borderColor: colors.border, marginBottom: 20, gap: 10 },
-  searchIcon: { fontSize: 16 },
-  searchInput: { flex: 1, fontFamily: typography.fontFamily.regular, fontSize: typography.fontSize.base, color: colors.text },
-  categories: { marginBottom: 28 },
-  categoriesContent: { gap: 8, paddingRight: 20 },
-  chip: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 100, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border },
-  chipActive: { backgroundColor: colors.orange, borderColor: colors.orange },
-  chipText: { fontFamily: typography.fontFamily.medium, fontSize: typography.fontSize.sm, color: colors.textSecondary },
-  chipTextActive: { color: colors.black },
-  section: { marginBottom: 32 },
-  sectionTitle: { fontFamily: typography.fontFamily.bold, fontSize: typography.fontSize.lg, color: colors.text, marginBottom: 16 },
-  featuredList: { gap: 16, paddingRight: 20 },
-  featuredCard: { width: 220, backgroundColor: colors.card, borderRadius: 16, padding: 16, borderTopWidth: 3, borderTopColor: colors.orange, gap: 8 },
-  featuredBadge: { alignSelf: 'flex-start', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 100 },
-  featuredBadgeText: { fontFamily: typography.fontFamily.medium, fontSize: typography.fontSize.xs },
-  featuredTitle: { fontFamily: typography.fontFamily.bold, fontSize: typography.fontSize.base, color: colors.text, lineHeight: 22 },
-  featuredDate: { fontFamily: typography.fontFamily.regular, fontSize: typography.fontSize.xs, color: colors.textSecondary },
-  featuredLocation: { fontFamily: typography.fontFamily.regular, fontSize: typography.fontSize.xs, color: colors.textSecondary },
-  featuredFooter: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 },
-  featuredPrice: { fontFamily: typography.fontFamily.bold, fontSize: typography.fontSize.base, color: colors.orange },
-  featuredCta: { fontFamily: typography.fontFamily.medium, fontSize: typography.fontSize.sm, color: colors.textMuted },
-  upcomingList: { gap: 12 },
-  upcomingCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.card, borderRadius: 12, padding: 14, gap: 14, borderWidth: 1, borderColor: colors.border },
-  upcomingDateBox: { width: 44, alignItems: 'center', backgroundColor: colors.cardHover, borderRadius: 8, padding: 8 },
-  upcomingDateDay: { fontFamily: typography.fontFamily.bold, fontSize: typography.fontSize.lg, color: colors.orange, lineHeight: 26 },
-  upcomingDateMonth: { fontFamily: typography.fontFamily.medium, fontSize: typography.fontSize.xs, color: colors.textMuted },
-  upcomingInfo: { flex: 1, gap: 4 },
-  upcomingTitle: { fontFamily: typography.fontFamily.semiBold, fontSize: typography.fontSize.base, color: colors.text },
-  upcomingLocation: { fontFamily: typography.fontFamily.regular, fontSize: typography.fontSize.xs, color: colors.textSecondary },
-  upcomingPrice: { fontFamily: typography.fontFamily.bold, fontSize: typography.fontSize.sm, color: colors.yellow },
+  safeArea: { flex: 1, backgroundColor: colors.bgDeep },
+  container: { flex: 1 },
+  content: { paddingTop: 14 },
+  mark: { width: 52, height: 52, borderRadius: 18, backgroundColor: colors.black, alignItems: 'center', justifyContent: 'center' },
+  markText: { fontFamily: typography.fontFamily.bold, fontSize: typography.fontSize.sm, color: colors.ivory, letterSpacing: 2.4 },
+  heroActions: { flexDirection: 'row', gap: 10, flexWrap: 'wrap' },
+  primaryButton: { flex: 1, backgroundColor: colors.orange, borderRadius: 18, paddingVertical: 14, alignItems: 'center' },
+  primaryButtonText: { fontFamily: typography.fontFamily.semiBold, fontSize: typography.fontSize.base, color: colors.black },
+  secondaryButton: { minWidth: 116, borderRadius: 18, paddingVertical: 14, alignItems: 'center', backgroundColor: colors.cardStrong, borderWidth: 1, borderColor: colors.borderStrong },
+  secondaryButtonText: { fontFamily: typography.fontFamily.semiBold, fontSize: typography.fontSize.base, color: colors.text },
+  tileGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  chipWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  stack: { gap: 12 },
+  rail: { gap: 12, paddingRight: 8 },
+  poster: {},
+  posterImage: { borderRadius: 26, overflow: 'hidden', padding: 14, justifyContent: 'flex-end', gap: 8 },
+  posterImageInner: { borderRadius: 26 },
+  posterShade: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(17,17,17,0.28)' },
+  posterCategory: { fontFamily: typography.fontFamily.medium, fontSize: typography.fontSize.sm, color: colors.ivory },
+  posterTitle: { fontFamily: typography.fontFamily.bold, fontSize: typography.fontSize.lg, color: colors.ivory },
+  posterMeta: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  posterMetaText: { fontFamily: typography.fontFamily.medium, fontSize: typography.fontSize.sm, color: colors.ivory },
 });

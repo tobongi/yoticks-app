@@ -1,0 +1,9 @@
+{
+  "name": "YoTicks",
+  "overview": "YoTicks is an event management and ticketing platform based in Kinshasa, DRC. It provides organizers with a digital solution for creating events, selling tickets via QR codes, managing guest lists, and tracking real-time entry statistics for concerts, conferences, and sports.",
+  "websiteUrl": "https://yoticks.com/",
+  "brandValues": ["Simplicity", "Efficiency", "Local Partnership"],
+  "visualAesthetics": ["nocturnal", "sleek", "high-energy", "premium", "modern", "urban", "sophisticated", "minimalist"],
+  "toneOfVoice": ["Professional", "Direct", "Modern", "Informative"],
+  "fonts": ["mango grotesque"]
+}

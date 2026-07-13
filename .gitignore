@@ -32,6 +32,10 @@ yarn-error.*
 
 # local env files
 .env*.local
+server/.env
+server/.yoticks-store/
+server/prisma/dev.db
+server/prisma/dev.db-journal
 
 # typescript
 *.tsbuildinfo

@@ -1,82 +1,119 @@
-import { ScrollView, View, Text, Pressable, StyleSheet } from 'react-native';
+import { useEffect, useState } from 'react';
+import { ImageBackground, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { FALLBACK_TICKETS, listTickets, type BackendTicket } from '../../src/backend';
+import { useAuth } from '../../src/auth';
+import { useLiveRefresh } from '../../src/live-refresh';
+import { buildTicketDigest } from '../../src/app-redesign';
+import { CalendarIcon, MapIcon, QrIcon, TicketIcon } from '../../src/icons';
 import { colors } from '../../src/theme/colors';
 import { typography } from '../../src/theme/typography';
+import { HeroPanel, LivedBackground, ScreenHeader, SectionBlock, StatRow, VisualCard } from '../../src/ui/lived-in';
+import { usePhoneLayout } from '../../src/ui/responsive';
 
-const TICKETS = [
-  { id: '1', event: 'Kinshasa Jazz Festival', date: '15 Juin 2026', location: 'Kinshasa, RDC', status: 'valid', seat: 'A-12', code: 'YT-2026-001' },
-  { id: '2', event: 'Africa CEO Forum', date: '22 Juin 2026', location: 'Abidjan, CI', status: 'valid', seat: 'VIP', code: 'YT-2026-002' },
-  { id: '3', event: 'Nuit Funk 2026', date: '3 Avr 2026', location: 'Kinshasa, RDC', status: 'used', seat: 'B-07', code: 'YT-2026-000' },
-];
+export default function TicketsScreen() {
+  const { token } = useAuth();
+  const [tickets, setTickets] = useState<BackendTicket[]>(FALLBACK_TICKETS);
+  const refreshTick = useLiveRefresh(2500);
+  const layout = usePhoneLayout();
 
-const statusConfig = {
-  valid: { label: 'Valide', color: colors.green, bg: colors.green + '22' },
-  used: { label: 'Utilisé', color: colors.textMuted, bg: colors.cardHover },
-  cancelled: { label: 'Annulé', color: colors.red, bg: colors.red + '22' },
-};
+  useEffect(() => {
+    listTickets(token ?? undefined).then(setTickets);
+  }, [refreshTick, token]);
 
-export default function Tickets() {
+  const digest = buildTicketDigest(tickets);
+  const featured = digest.active[0] ?? tickets[0];
+
   return (
     <SafeAreaView style={styles.safeArea}>
-      <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-        <Text style={styles.pageTitle}>Mes billets</Text>
+      <LivedBackground />
+      <ScrollView
+        style={styles.container}
+        contentContainerStyle={[styles.content, { paddingHorizontal: layout.screenPadding, paddingBottom: layout.isCompact ? 96 : 110, gap: layout.sectionGap }]}
+        showsVerticalScrollIndicator={false}
+      >
+        <ScreenHeader eyebrow="Billets" title="Mes QR" />
 
-        {TICKETS.map((ticket) => {
-          const status = statusConfig[ticket.status as keyof typeof statusConfig];
-          return (
-            <Pressable key={ticket.id} style={styles.ticket} onPress={() => router.push(`/ticket/${ticket.id}`)}>
-              <View style={styles.ticketHeader}>
-                <Text style={styles.ticketEvent}>{ticket.event}</Text>
-                <View style={[styles.statusBadge, { backgroundColor: status.bg }]}>
-                  <Text style={[styles.statusText, { color: status.color }]}>{status.label}</Text>
+        <HeroPanel
+          eyebrow={featured ? (featured.status === 'valid' ? 'Pret' : 'Archive') : 'Vide'}
+          title={featured?.event.title ?? 'Aucun billet'}
+          subtitle={featured ? `${featured.event.location} • ${featured.event.date}` : 'Vos billets apparaitront ici'}
+          art={<QrIcon size={36} color={colors.orange} />}
+        >
+          <StatRow items={digest.stats} />
+          {featured ? (
+            <Pressable style={styles.heroPass} onPress={() => router.push(`/ticket/${featured.id}`)}>
+              <ImageBackground source={{ uri: featured.event.imageUrl }} style={styles.heroPassImage} imageStyle={styles.heroPassInner}>
+                <View style={styles.heroPassShade} />
+                <View style={styles.heroPassTop}>
+                  <Text style={styles.heroPassTag}>{featured.event.category}</Text>
+                  <View style={styles.codePill}>
+                    <TicketIcon size={12} color={colors.bg} />
+                    <Text style={styles.codePillText}>{featured.code}</Text>
+                  </View>
                 </View>
-              </View>
-
-              <View style={styles.ticketDivider} />
-
-              <View style={styles.ticketMeta}>
-                <View style={styles.metaItem}>
-                  <Text style={styles.metaLabel}>Date</Text>
-                  <Text style={styles.metaValue}>{ticket.date}</Text>
-                </View>
-                <View style={styles.metaItem}>
-                  <Text style={styles.metaLabel}>Lieu</Text>
-                  <Text style={styles.metaValue}>{ticket.location}</Text>
-                </View>
-                <View style={styles.metaItem}>
-                  <Text style={styles.metaLabel}>Place</Text>
-                  <Text style={styles.metaValue}>{ticket.seat}</Text>
-                </View>
-              </View>
-
-              <View style={styles.ticketCode}>
-                <Text style={styles.codeText}>{ticket.code}</Text>
-                {ticket.status === 'valid' && <Text style={styles.scanText}>Appuyer pour scanner →</Text>}
-              </View>
+                <Text style={styles.heroPassTitle}>{featured.event.title}</Text>
+              </ImageBackground>
             </Pressable>
-          );
-        })}
+          ) : null}
+        </HeroPanel>
+
+        <SectionBlock eyebrow="Actifs" title={`${digest.active.length} prets`}>
+          <View style={styles.stack}>
+            {digest.active.map((ticket) => (
+              <VisualCard
+                key={ticket.id}
+                title={ticket.event.title}
+                subtitle={ticket.seat}
+                meta={`${ticket.event.location} • ${ticket.event.date}`}
+                imageUrl={ticket.event.imageUrl}
+                badge={ticket.code}
+                onPress={() => router.push(`/ticket/${ticket.id}`)}
+                right={
+                  <View style={styles.sideMeta}>
+                    <CalendarIcon size={14} color={colors.orange} />
+                    <MapIcon size={14} color={colors.orange} />
+                  </View>
+                }
+              />
+            ))}
+          </View>
+        </SectionBlock>
+
+        <SectionBlock eyebrow="Passes" title={`${digest.archived.length} deja utilises`}>
+          <View style={styles.stack}>
+            {digest.archived.map((ticket) => (
+              <VisualCard
+                key={ticket.id}
+                title={ticket.event.title}
+                subtitle={ticket.status === 'used' ? 'Passe' : 'Annule'}
+                meta={`${ticket.event.location} • ${ticket.event.date}`}
+                imageUrl={ticket.event.imageUrl}
+                badge={ticket.code}
+                onPress={() => router.push(`/ticket/${ticket.id}`)}
+              />
+            ))}
+          </View>
+        </SectionBlock>
       </ScrollView>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: colors.bg },
-  container: { flex: 1, paddingHorizontal: 20, paddingTop: 16 },
-  pageTitle: { fontFamily: typography.fontFamily.bold, fontSize: typography.fontSize['2xl'], color: colors.text, marginBottom: 24 },
-  ticket: { backgroundColor: colors.card, borderRadius: 16, padding: 16, marginBottom: 16, borderWidth: 1, borderColor: colors.border, gap: 12 },
-  ticketHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 },
-  ticketEvent: { flex: 1, fontFamily: typography.fontFamily.bold, fontSize: typography.fontSize.md, color: colors.text, lineHeight: 24 },
-  statusBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 100 },
-  statusText: { fontFamily: typography.fontFamily.medium, fontSize: typography.fontSize.xs },
-  ticketDivider: { height: 1, backgroundColor: colors.border },
-  ticketMeta: { flexDirection: 'row', gap: 16 },
-  metaItem: { flex: 1, gap: 4 },
-  metaLabel: { fontFamily: typography.fontFamily.regular, fontSize: typography.fontSize.xs, color: colors.textMuted },
-  metaValue: { fontFamily: typography.fontFamily.medium, fontSize: typography.fontSize.sm, color: colors.text },
-  ticketCode: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: colors.cardHover, borderRadius: 8, padding: 12 },
-  codeText: { fontFamily: typography.fontFamily.bold, fontSize: typography.fontSize.sm, color: colors.orange, letterSpacing: 1 },
-  scanText: { fontFamily: typography.fontFamily.regular, fontSize: typography.fontSize.xs, color: colors.textMuted },
+  safeArea: { flex: 1, backgroundColor: colors.bgDeep },
+  container: { flex: 1 },
+  content: { paddingTop: 14 },
+  heroPass: { overflow: 'hidden', borderRadius: 24 },
+  heroPassImage: { minHeight: 170, padding: 14, justifyContent: 'space-between' },
+  heroPassInner: { borderRadius: 24 },
+  heroPassShade: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(17,17,17,0.26)' },
+  heroPassTop: { flexDirection: 'row', justifyContent: 'space-between', gap: 10 },
+  heroPassTag: { fontFamily: typography.fontFamily.medium, fontSize: typography.fontSize.sm, color: colors.ivory },
+  codePill: { flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 7, backgroundColor: 'rgba(17,17,17,0.3)' },
+  codePillText: { fontFamily: typography.fontFamily.semiBold, fontSize: typography.fontSize.sm, color: colors.ivory },
+  heroPassTitle: { fontFamily: typography.fontFamily.bold, fontSize: typography.fontSize.xl, color: colors.ivory },
+  stack: { gap: 12 },
+  sideMeta: { gap: 8, paddingRight: 4 },
 });

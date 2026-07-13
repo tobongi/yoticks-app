@@ -1,0 +1,295 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String?  @unique
+  passwordHash String?
+  name         String
+  avatarUrl    String?
+  role         String   @default("attendee")
+  totalSpend   Int      @default(0)
+  createdAt    DateTime @default(now())
+  organizerEvents   Event[]            @relation("OrganizerEvents")
+  tickets           Ticket[]
+  savedEvents       SavedEvent[]
+  merchantAccounts  MerchantAccount[]
+  checkoutSessions CheckoutSession[]
+  notifications     Notification[]
+  searchHistory     SearchHistory[]
+  followedOrganizers FollowedOrganizer[]
+  followedCategories FollowedCategory[]
+  eventInteractions EventInteraction[]
+  waitlistEntries   WaitlistEntry[]
+}
+
+model Venue {
+  id             String   @id
+  name           String
+  city           String
+  country        String
+  district       String?
+  description    String?
+  category       String
+  imageUrl       String
+  createdAt      DateTime @default(now())
+  events         Event[]
+
+  @@index([city])
+  @@index([category])
+}
+
+model Event {
+  id          String   @id
+  organizerId  String?
+  venueId     String
+  title       String
+  date        String
+  location    String
+  category    String
+  price       String
+  description String
+  organizer   String
+  color       String
+  imageUrl    String
+  status      String   @default("published")
+  coverImageUrl String?
+  venueMapUrl String?
+  publishedAt DateTime?
+  createdAt   DateTime @default(now())
+  venue       Venue    @relation(fields: [venueId], references: [id], onDelete: Restrict)
+  organizerUser User?   @relation("OrganizerEvents", fields: [organizerId], references: [id], onDelete: SetNull)
+  tickets     Ticket[]
+  savedEvents SavedEvent[]
+  checkoutSessions CheckoutSession[]
+  galleryImages EventGalleryImage[]
+  lineupItems EventLineupItem[]
+  tiers       EventTier[]
+  promoCodes  PromoCode[]
+  waitlistEntries WaitlistEntry[]
+  interactions EventInteraction[]
+
+  @@index([venueId])
+  @@index([organizerId])
+}
+
+model Ticket {
+  id         String   @id
+  userId     String
+  eventId    String
+  seat       String
+  code       String   @unique
+  status     String   @default("valid")
+  holderName String
+  gate       String?
+  tierKey    String   @default("standard")
+  pricePaid  Int      @default(0)
+  createdAt  DateTime @default(now())
+
+  user   User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  event  Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([eventId])
+}
+
+model EventGalleryImage {
+  id        String   @id
+  eventId    String
+  url       String
+  sortOrder Int
+  event     Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@index([eventId])
+}
+
+model EventLineupItem {
+  id      String @id
+  eventId  String
+  time    String
+  title   String
+  stage   String
+  event   Event   @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@index([eventId])
+}
+
+model EventTier {
+  id             String  @id
+  eventId         String
+  key            String
+  name           String
+  priceLabel     String
+  priceCents     Int
+  inventoryTotal Int
+  inventorySold  Int     @default(0)
+  maxPerOrder    Int     @default(4)
+  waitlistEnabled Boolean @default(false)
+  perks          String
+  event          Event   @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@unique([eventId, key])
+  @@index([eventId])
+}
+
+model PromoCode {
+  id            String   @id
+  eventId        String
+  code          String
+  discountType  String
+  discountValue Int
+  maxUses       Int
+  usedCount     Int      @default(0)
+  active        Boolean  @default(true)
+  tierKey       String?
+  startsAt      DateTime?
+  endsAt        DateTime?
+  event         Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@unique([eventId, code])
+  @@index([eventId])
+}
+
+model WaitlistEntry {
+  id        String   @id
+  eventId    String
+  userId    String
+  tierKey   String
+  quantity  Int
+  status    String   @default("active")
+  createdAt DateTime @default(now())
+  event     Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([eventId])
+  @@index([userId])
+}
+
+model Notification {
+  id        String   @id
+  userId    String
+  type      String
+  title     String
+  body      String
+  dataUrl   String?
+  dataJson  String?
+  readAt    DateTime?
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model SearchHistory {
+  id        String   @id
+  userId    String
+  query     String
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model FollowedOrganizer {
+  id          String   @id
+  userId      String
+  organizerId String
+  createdAt   DateTime @default(now())
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, organizerId])
+  @@index([userId])
+}
+
+model FollowedCategory {
+  id        String   @id
+  userId    String
+  category  String
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, category])
+  @@index([userId])
+}
+
+model EventInteraction {
+  id        String   @id
+  eventId    String
+  userId    String?
+  kind      String
+  city      String?
+  createdAt DateTime @default(now())
+  event     Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([eventId])
+  @@index([userId])
+  @@index([kind])
+}
+
+model MerchantAccount {
+  id             String   @id @default(cuid())
+  organizerId    String
+  provider       String
+  businessName   String
+  supportEmail   String
+  country        String
+  city           String
+  phoneNumber    String
+  payoutDetails  String
+  status         String
+  updatedAt      DateTime @default(now())
+  organizer      User     @relation(fields: [organizerId], references: [id], onDelete: Cascade)
+
+  @@unique([organizerId, provider])
+  @@index([organizerId])
+}
+
+model CheckoutSession {
+  id             String   @id
+  userId         String
+  eventId        String
+  organizerId    String
+  tier           String
+  paymentMethod  String
+  amount         Int
+  status         String
+  createdAt      DateTime @default(now())
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  event          Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([eventId])
+  @@index([organizerId])
+}
+
+model SavedEvent {
+  id        String   @id @default(cuid())
+  userId    String
+  eventId   String
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  event     Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, eventId])
+  @@index([userId])
+  @@index([eventId])
+}
+
+model ProviderUser {
+  phone    String @id
+  name     String
+  city     String
+  commune  String
+  lat      Float
+  lng      Float
+
+  @@index([city])
+  @@index([commune])
+}

@@ -1,23 +1,29 @@
 export const colors = {
   // Brand
-  black: '#000000',
-  yellow: '#FFC516',
-  orange: '#F99F22',
-  red: '#D71F27',
-  green: '#3C9449',
-  beige: '#F2E9DC',
+  black: '#111111',
+  yellow: '#F6C35B',
+  orange: '#F2643B',
+  red: '#CC4B4B',
+  green: '#4D8F6A',
+  beige: '#F6E7D4',
+  ivory: '#FFF8F1',
 
   // UI
-  bg: '#0A0A0A',
-  card: '#141414',
-  cardHover: '#1E1E1E',
-  border: 'rgba(255,255,255,0.08)',
-  borderOrange: 'rgba(249,159,34,0.25)',
+  bgDeep: '#FFF5EF',
+  bg: '#FFFFFF',
+  card: '#FFFFFF',
+  cardHover: '#FFF2EA',
+  cardStrong: '#FFF9F5',
+  surfaceSoft: '#FFF6F0',
+  border: 'rgba(17,17,17,0.08)',
+  borderStrong: 'rgba(17,17,17,0.14)',
+  borderOrange: 'rgba(242,100,59,0.22)',
+  accentWash: 'rgba(242,100,59,0.10)',
 
   // Text
-  text: '#F5F5F5',
-  textSecondary: '#A1A1AA',
-  textMuted: '#71717A',
+  text: '#161312',
+  textSecondary: '#6C625B',
+  textMuted: '#93887D',
 
   // Status
   success: '#3C9449',

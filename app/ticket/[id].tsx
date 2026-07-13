@@ -1,98 +1,152 @@
-import { View, Text, Pressable, StyleSheet } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import { Animated, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import QRCode from 'react-native-qrcode-svg';
+import { FALLBACK_TICKETS, getTicket, type BackendTicket } from '../../src/backend';
+import { useAuth } from '../../src/auth';
+import { useLiveRefresh } from '../../src/live-refresh';
+import { ArrowLeftIcon, CalendarIcon, CloseIcon, MapIcon, QrIcon, TicketIcon, UserIcon } from '../../src/icons';
 import { colors } from '../../src/theme/colors';
 import { typography } from '../../src/theme/typography';
+import { HeroPanel, LivedBackground, SectionBlock, StatRow } from '../../src/ui/lived-in';
+import { usePhoneLayout } from '../../src/ui/responsive';
 
-const TICKETS: Record<string, any> = {
-  '1': { event: 'Kinshasa Jazz Festival', date: '15 Juin 2026', time: '19h00', location: 'Stade des Martyrs, Kinshasa', seat: 'A-12', holder: 'Jean Dupont', code: 'YT-2026-001', status: 'valid' },
-  '2': { event: 'Africa CEO Forum', date: '22 Juin 2026', time: '08h30', location: 'Hôtel Ivoire, Abidjan', seat: 'VIP', holder: 'Jean Dupont', code: 'YT-2026-002', status: 'valid' },
-  '3': { event: 'Nuit Funk 2026', date: '3 Avr 2026', time: '22h00', location: 'Club Fréquence, Kinshasa', seat: 'B-07', holder: 'Jean Dupont', code: 'YT-2026-000', status: 'used' },
-};
-
-export default function TicketModal() {
+export default function TicketScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const ticket = TICKETS[id] ?? TICKETS['1'];
-  const isValid = ticket.status === 'valid';
+  const { token } = useAuth();
+  const [ticket, setTicket] = useState<BackendTicket | null>(null);
+  const [expanded, setExpanded] = useState(false);
+  const refreshTick = useLiveRefresh(2500);
+  const scanLine = useRef(new Animated.Value(0)).current;
+  const layout = usePhoneLayout();
+
+  useEffect(() => {
+    getTicket(id, token ?? undefined).then((next) => setTicket(next ?? FALLBACK_TICKETS[0]));
+  }, [id, refreshTick, token]);
+
+  useEffect(() => {
+    if (!expanded) {
+      scanLine.setValue(0);
+      return;
+    }
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(scanLine, { toValue: 210, duration: 1800, useNativeDriver: true }),
+        Animated.timing(scanLine, { toValue: 0, duration: 1800, useNativeDriver: true }),
+      ]),
+    ).start();
+  }, [expanded, scanLine]);
+
+  const current = ticket ?? FALLBACK_TICKETS[0];
+  const valid = current.status === 'valid';
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <View style={styles.container}>
-        <Pressable style={styles.close} onPress={() => router.back()}>
-          <Text style={styles.closeText}>✕</Text>
-        </Pressable>
-
-        <View style={[styles.ticket, !isValid && styles.ticketUsed]}>
-          {/* Header */}
-          <View style={styles.ticketHeader}>
-            <Text style={styles.brandLogo}>YOTICKS</Text>
-            <View style={[styles.statusDot, { backgroundColor: isValid ? colors.green : colors.textMuted }]} />
-          </View>
-
-          <Text style={styles.eventTitle}>{ticket.event}</Text>
-
-          {/* Info grid */}
-          <View style={styles.infoGrid}>
-            {[
-              { label: 'Date', value: ticket.date },
-              { label: 'Heure', value: ticket.time },
-              { label: 'Lieu', value: ticket.location },
-              { label: 'Place', value: ticket.seat },
-              { label: 'Titulaire', value: ticket.holder },
-            ].map((row) => (
-              <View key={row.label} style={styles.infoRow}>
-                <Text style={styles.infoLabel}>{row.label}</Text>
-                <Text style={styles.infoValue}>{row.value}</Text>
+      <LivedBackground />
+      <Modal visible={expanded} transparent animationType="fade" onRequestClose={() => setExpanded(false)}>
+        <View style={styles.modalBackdrop}>
+          <Pressable accessibilityRole="button" accessibilityLabel="Fermer le QR agrandi" style={styles.modalScrim} onPress={() => setExpanded(false)} />
+          <View style={[styles.modalCard, { maxWidth: layout.modalCardWidth }]}>
+            <View style={styles.modalTop}>
+              <View>
+                <Text style={styles.modalEyebrow}>{current.event.title}</Text>
+                <Text style={styles.modalTitle}>{current.code}</Text>
               </View>
-            ))}
-          </View>
-
-          {/* QR placeholder */}
-          <View style={styles.divider}>
-            <View style={styles.dividerCircle} />
-            <View style={styles.dividerLine} />
-            <View style={[styles.dividerCircle, styles.dividerCircleRight]} />
-          </View>
-
-          <View style={styles.qrSection}>
-            <View style={[styles.qrCode, !isValid && styles.qrCodeUsed]}>
-              <Text style={styles.qrText}>▦</Text>
-              {!isValid && <View style={styles.qrOverlay}><Text style={styles.qrOverlayText}>UTILISÉ</Text></View>}
+              <Pressable accessibilityRole="button" accessibilityLabel="Fermer le QR agrandi" style={styles.modalClose} onPress={() => setExpanded(false)}>
+                <CloseIcon size={16} color={colors.text} />
+              </Pressable>
             </View>
-            <Text style={styles.ticketCode}>{ticket.code}</Text>
-            <Text style={styles.scanHint}>{isValid ? 'Présentez ce QR code à l\'entrée' : 'Ce billet a déjà été utilisé'}</Text>
+            <View style={styles.qrFrameLarge}>
+              <QRCode value={`yoticks-ticket:${current.code}|event:${current.event.id}|seat:${current.seat}`} size={layout.qrSizeLarge} backgroundColor={colors.bg} color={colors.text} />
+              {valid ? <Animated.View style={[styles.scanLine, { transform: [{ translateY: scanLine }] }]} /> : <Text style={styles.usedStamp}>USED</Text>}
+            </View>
           </View>
         </View>
-      </View>
+      </Modal>
+
+      <ScrollView
+        style={styles.container}
+        contentContainerStyle={[styles.content, { paddingHorizontal: layout.screenPadding, paddingBottom: layout.isCompact ? 96 : 110, gap: layout.sectionGap }]}
+        showsVerticalScrollIndicator={false}
+      >
+        <Pressable accessibilityRole="button" accessibilityLabel="Retour aux billets" style={styles.back} onPress={() => router.replace('/(tabs)/tickets')}>
+          <ArrowLeftIcon size={16} color={colors.orange} />
+          <Text style={styles.backText}>Retour</Text>
+        </Pressable>
+
+        <HeroPanel eyebrow={valid ? 'Pret' : 'Passe'} title={current.event.title} subtitle={`${current.event.location} • ${current.event.date}`} art={<QrIcon size={36} color={colors.orange} />}>
+          <StatRow items={[{ label: 'Code', value: current.code }, { label: 'Place', value: current.seat }, { label: 'Porte', value: current.gate ?? '-' }]} />
+          <Pressable style={styles.qrCard} onPress={() => setExpanded(true)}>
+            <View style={styles.qrHeader}>
+              <Text style={styles.qrLabel}>Mon QR</Text>
+              <Text style={styles.qrHint}>{valid ? 'Toucher pour agrandir' : 'Deja scanne'}</Text>
+            </View>
+            <View style={styles.qrFrameSmall}>
+              <QRCode value={`yoticks-ticket:${current.code}|event:${current.event.id}|seat:${current.seat}`} size={layout.qrSizeSmall} backgroundColor={colors.card} color={colors.text} />
+              {!valid ? <Text style={styles.usedStampSmall}>USED</Text> : null}
+            </View>
+          </Pressable>
+        </HeroPanel>
+
+        <SectionBlock eyebrow="Infos" title="A garder">
+          <View style={styles.infoGrid}>
+            <InfoTile icon={<CalendarIcon size={16} color={colors.orange} />} label="Date" value={current.event.date} width={layout.twoUpWidth} />
+            <InfoTile icon={<MapIcon size={16} color={colors.orange} />} label="Lieu" value={current.event.location} width={layout.twoUpWidth} />
+            <InfoTile icon={<UserIcon size={16} color={colors.orange} />} label="Nom" value={current.holderName} width={layout.twoUpWidth} />
+            <InfoTile icon={<TicketIcon size={16} color={colors.orange} />} label="Statut" value={valid ? 'Valide' : 'Passe'} width={layout.twoUpWidth} />
+          </View>
+        </SectionBlock>
+
+        <SectionBlock eyebrow="Rappel" title="Avant la porte">
+          <View style={styles.noteCard}>
+            <Text style={styles.noteLine}>1. Ouvrir le QR</Text>
+            <Text style={styles.noteLine}>2. Monter la luminosite</Text>
+            <Text style={styles.noteLine}>3. Montrer au staff</Text>
+          </View>
+        </SectionBlock>
+      </ScrollView>
     </SafeAreaView>
   );
 }
 
+function InfoTile({ icon, label, value, width }: { icon: React.ReactNode; label: string; value: string; width: '100%' | '48.5%' }) {
+  return (
+    <View style={[styles.infoTile, { width }]}>
+      <View style={styles.infoIcon}>{icon}</View>
+      <Text style={styles.infoLabel}>{label}</Text>
+      <Text style={styles.infoValue}>{value}</Text>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: colors.bg },
-  container: { flex: 1, paddingHorizontal: 20, paddingTop: 20, alignItems: 'center' },
-  close: { alignSelf: 'flex-end', width: 36, height: 36, borderRadius: 18, backgroundColor: colors.card, alignItems: 'center', justifyContent: 'center', marginBottom: 20 },
-  closeText: { fontFamily: typography.fontFamily.regular, fontSize: typography.fontSize.base, color: colors.text },
-  ticket: { width: '100%', backgroundColor: colors.card, borderRadius: 20, overflow: 'hidden', borderWidth: 1, borderColor: colors.borderOrange },
-  ticketUsed: { borderColor: colors.border, opacity: 0.7 },
-  ticketHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingTop: 20, marginBottom: 4 },
-  brandLogo: { fontFamily: typography.fontFamily.bold, fontSize: typography.fontSize.xs, color: colors.orange, letterSpacing: 3 },
-  statusDot: { width: 10, height: 10, borderRadius: 5 },
-  eventTitle: { paddingHorizontal: 20, fontFamily: typography.fontFamily.bold, fontSize: typography.fontSize.xl, color: colors.text, lineHeight: 30, marginBottom: 20 },
-  infoGrid: { paddingHorizontal: 20, gap: 10, marginBottom: 20 },
-  infoRow: { flexDirection: 'row', justifyContent: 'space-between' },
-  infoLabel: { fontFamily: typography.fontFamily.regular, fontSize: typography.fontSize.sm, color: colors.textMuted },
-  infoValue: { fontFamily: typography.fontFamily.semiBold, fontSize: typography.fontSize.sm, color: colors.text },
-  divider: { flexDirection: 'row', alignItems: 'center', marginBottom: 20 },
-  dividerCircle: { width: 20, height: 20, borderRadius: 10, backgroundColor: colors.bg, marginLeft: -10 },
-  dividerCircleRight: { marginLeft: 'auto', marginRight: -10 },
-  dividerLine: { flex: 1, height: 1, borderStyle: 'dashed', borderWidth: 1, borderColor: colors.border },
-  qrSection: { paddingHorizontal: 20, paddingBottom: 24, alignItems: 'center', gap: 12 },
-  qrCode: { width: 160, height: 160, backgroundColor: colors.bg, borderRadius: 12, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.border },
-  qrCodeUsed: { opacity: 0.4 },
-  qrText: { fontSize: 100, color: colors.text },
-  qrOverlay: { position: 'absolute', inset: 0, backgroundColor: colors.bg + 'cc', alignItems: 'center', justifyContent: 'center', borderRadius: 12 },
-  qrOverlayText: { fontFamily: typography.fontFamily.bold, fontSize: typography.fontSize.lg, color: colors.textMuted, letterSpacing: 3 },
-  ticketCode: { fontFamily: typography.fontFamily.bold, fontSize: typography.fontSize.base, color: colors.orange, letterSpacing: 2 },
-  scanHint: { fontFamily: typography.fontFamily.regular, fontSize: typography.fontSize.sm, color: colors.textSecondary, textAlign: 'center' },
+  safeArea: { flex: 1, backgroundColor: colors.bgDeep },
+  container: { flex: 1 },
+  content: { paddingTop: 14 },
+  back: { flexDirection: 'row', alignItems: 'center', gap: 8, alignSelf: 'flex-start' },
+  backText: { fontFamily: typography.fontFamily.semiBold, fontSize: typography.fontSize.sm, color: colors.orange },
+  qrCard: { borderRadius: 24, padding: 14, backgroundColor: colors.cardStrong, borderWidth: 1, borderColor: colors.borderStrong, gap: 12, alignItems: 'center' },
+  qrHeader: { width: '100%', flexDirection: 'row', justifyContent: 'space-between', gap: 10 },
+  qrLabel: { fontFamily: typography.fontFamily.semiBold, fontSize: typography.fontSize.base, color: colors.text },
+  qrHint: { fontFamily: typography.fontFamily.medium, fontSize: typography.fontSize.sm, color: colors.textMuted },
+  qrFrameSmall: { minWidth: 160, minHeight: 160, padding: 14, borderRadius: 26, backgroundColor: colors.card, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
+  usedStampSmall: { position: 'absolute', fontFamily: typography.fontFamily.bold, fontSize: 26, color: colors.red, transform: [{ rotate: '-14deg' }] },
+  infoGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  infoTile: { borderRadius: 22, padding: 14, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border, gap: 8 },
+  infoIcon: { width: 32, height: 32, borderRadius: 12, backgroundColor: colors.cardHover, alignItems: 'center', justifyContent: 'center' },
+  infoLabel: { fontFamily: typography.fontFamily.medium, fontSize: typography.fontSize.sm, color: colors.textMuted },
+  infoValue: { fontFamily: typography.fontFamily.semiBold, fontSize: typography.fontSize.base, color: colors.text },
+  noteCard: { borderRadius: 24, padding: 18, backgroundColor: colors.black, gap: 8 },
+  noteLine: { fontFamily: typography.fontFamily.semiBold, fontSize: typography.fontSize.base, color: colors.ivory },
+  modalBackdrop: { flex: 1, backgroundColor: 'rgba(17,17,17,0.55)', alignItems: 'center', justifyContent: 'center', padding: 20 },
+  modalScrim: { ...StyleSheet.absoluteFill },
+  modalCard: { width: '100%', borderRadius: 28, padding: 18, backgroundColor: colors.card, gap: 16 },
+  modalTop: { flexDirection: 'row', justifyContent: 'space-between', gap: 10 },
+  modalEyebrow: { fontFamily: typography.fontFamily.medium, fontSize: typography.fontSize.sm, color: colors.textMuted },
+  modalTitle: { fontFamily: typography.fontFamily.bold, fontSize: typography.fontSize.xl, color: colors.text },
+  modalClose: { width: 48, height: 48, borderRadius: 16, backgroundColor: colors.cardHover, alignItems: 'center', justifyContent: 'center' },
+  qrFrameLarge: { alignItems: 'center', justifyContent: 'center', padding: 18, borderRadius: 28, backgroundColor: colors.bgDeep, overflow: 'hidden' },
+  scanLine: { position: 'absolute', left: 24, right: 24, height: 4, borderRadius: 999, backgroundColor: colors.orange },
+  usedStamp: { position: 'absolute', fontFamily: typography.fontFamily.bold, fontSize: 36, color: colors.red, transform: [{ rotate: '-14deg' }] },
 });

@@ -1,65 +1,158 @@
-import { ScrollView, View, Text, Pressable, StyleSheet } from 'react-native';
+import { useEffect, useMemo, useState } from 'react';
+import { ImageBackground, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { FALLBACK_EVENTS, getEvent, listEvents, type BackendEvent } from '../../src/backend';
+import { buildEventDetailModel } from '../../src/event-detail';
+import { useLiveRefresh } from '../../src/live-refresh';
+import { ArrowLeftIcon, CalendarIcon, MapIcon, SparkIcon, TicketIcon } from '../../src/icons';
+import { SavedEventButton } from '../../src/saved-event-button';
 import { colors } from '../../src/theme/colors';
 import { typography } from '../../src/theme/typography';
+import { HeroPanel, LivedBackground, ProgressBar, SectionBlock, VisualCard } from '../../src/ui/lived-in';
+import { usePhoneLayout } from '../../src/ui/responsive';
 
-const EVENTS: Record<string, any> = {
-  '1': { title: 'Kinshasa Jazz Festival', date: '15 Juin 2026 — 19h00', location: 'Stade des Martyrs, Kinshasa, RDC', category: 'Concerts', price: '5 000 FC', description: 'La plus grande célébration de jazz en Afrique centrale. 12 artistes internationaux, 3 scènes, food court africain.', organizer: 'Kinshasa Culture', color: colors.orange },
-  '2': { title: 'Africa CEO Forum', date: '22 Juin 2026 — 08h30', location: 'Hôtel Ivoire, Abidjan, CI', category: 'Conférences', price: '25 000 FC', description: 'Le sommet des dirigeants africains. 500+ CEO, panels, networking, pitch startups. Thème 2026 : IA & Souveraineté.', organizer: 'Africa Business+', color: colors.red },
-  '3': { title: 'Nuit Électro Dakar', date: '28 Juin 2026 — 22h00', location: 'Club Arc-en-Ciel, Dakar, SN', category: 'Soirées', price: '3 000 FC', description: 'La nuit la plus attendue de la saison. DJs internationaux, son Dolby Atmos, light show immersif.', organizer: 'Dakar Nights', color: colors.green },
-};
+export default function EventDetailScreen() {
+  const { id } = useLocalSearchParams<{ id?: string }>();
+  const [event, setEvent] = useState<BackendEvent | null>(null);
+  const [allEvents, setAllEvents] = useState<BackendEvent[]>(FALLBACK_EVENTS);
+  const refreshTick = useLiveRefresh(3000);
+  const layout = usePhoneLayout();
 
-export default function EventDetail() {
-  const { id } = useLocalSearchParams<{ id: string }>();
-  const event = EVENTS[id] ?? EVENTS['1'];
+  useEffect(() => {
+    if (typeof id !== 'string' || !id.trim()) {
+      setEvent(null);
+      return;
+    }
+    let active = true;
+    getEvent(id).then((next) => active && setEvent(next ?? null));
+    listEvents().then((next) => active && setAllEvents(next));
+    return () => {
+      active = false;
+    };
+  }, [id, refreshTick]);
+
+  const current = event ?? (typeof id === 'string' ? FALLBACK_EVENTS.find((item) => item.id === id) ?? FALLBACK_EVENTS[0] : FALLBACK_EVENTS[0]);
+  const model = useMemo(() => buildEventDetailModel(current, allEvents), [allEvents, current]);
+  const firstTier = current.tiers?.[0];
+  const scheduleItems = current.lineup?.length
+    ? current.lineup.map((item) => ({ time: item.time, title: item.title, meta: item.stage }))
+    : model.timeline.map((item) => ({ time: item.time, title: item.title, meta: item.description }));
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-        {/* Hero */}
-        <View style={[styles.hero, { borderBottomColor: event.color }]}>
-          <Pressable style={styles.back} onPress={() => router.back()}>
-            <Text style={styles.backText}>← Retour</Text>
-          </Pressable>
-          <View style={[styles.categoryBadge, { backgroundColor: event.color + '22' }]}>
-            <Text style={[styles.categoryText, { color: event.color }]}>{event.category}</Text>
+      <LivedBackground />
+      <ScrollView
+        style={styles.container}
+        contentContainerStyle={[styles.content, { paddingHorizontal: layout.screenPadding, paddingBottom: layout.isCompact ? 96 : 110, gap: layout.sectionGap }]}
+        showsVerticalScrollIndicator={false}
+      >
+        <Pressable accessibilityRole="button" accessibilityLabel="Retour a la page precedente" style={styles.back} onPress={() => (router.canGoBack() ? router.back() : router.replace('/(tabs)'))}>
+          <ArrowLeftIcon size={16} color={colors.orange} />
+          <Text style={styles.backText}>Retour</Text>
+        </Pressable>
+
+        <ImageBackground source={{ uri: current.imageUrl }} style={[styles.heroImage, { minHeight: layout.heroImageMinHeight }]} imageStyle={styles.heroImageInner}>
+          <View style={styles.heroShade} />
+          <View style={styles.heroTop}>
+            <Text style={styles.heroPrice}>{current.price}</Text>
+            <SavedEventButton compact eventId={current.id} />
           </View>
-          <Text style={styles.title}>{event.title}</Text>
-          <Text style={styles.organizer}>Par {event.organizer}</Text>
-        </View>
-
-        {/* Details */}
-        <View style={styles.details}>
-          {[
-            { icon: '📅', label: 'Date & heure', value: event.date },
-            { icon: '📍', label: 'Lieu', value: event.location },
-          ].map((d) => (
-            <View key={d.label} style={styles.detailRow}>
-              <Text style={styles.detailIcon}>{d.icon}</Text>
-              <View style={styles.detailInfo}>
-                <Text style={styles.detailLabel}>{d.label}</Text>
-                <Text style={styles.detailValue}>{d.value}</Text>
-              </View>
+          <Text style={styles.heroCategory}>{current.category}</Text>
+          <Text style={[styles.heroTitle, { fontSize: layout.eventTitleSize, lineHeight: layout.eventTitleLineHeight }]}>{current.title}</Text>
+          <View style={styles.heroMetaRow}>
+            <View style={styles.heroMetaChip}>
+              <CalendarIcon size={12} color={colors.bg} />
+              <Text style={styles.heroMetaText}>{current.date}</Text>
             </View>
-          ))}
-        </View>
+            <View style={styles.heroMetaChip}>
+              <MapIcon size={12} color={colors.bg} />
+              <Text style={styles.heroMetaText}>{current.location}</Text>
+            </View>
+          </View>
+        </ImageBackground>
 
-        {/* Description */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>À propos</Text>
-          <Text style={styles.description}>{event.description}</Text>
-        </View>
+        <HeroPanel eyebrow="Pourquoi y aller" title={model.subtitle} subtitle={current.organizer} art={<SparkIcon size={34} color={colors.orange} />}>
+          <Text style={styles.description}>{current.description}</Text>
+          <View style={styles.ctaRow}>
+            <Pressable style={styles.primaryButton} onPress={() => router.push({ pathname: '/reserver/[id]', params: { id: current.id } })}>
+              <TicketIcon size={16} color={colors.black} />
+              <Text style={styles.primaryButtonText}>{current.price === 'Gratuit' ? 'Prendre' : 'Reserver'}</Text>
+            </Pressable>
+          </View>
+        </HeroPanel>
+
+        <SectionBlock eyebrow="Infos" title="Lecture rapide">
+          <View style={styles.factGrid}>
+            {model.facts.slice(0, 4).map((fact) => (
+              <View key={fact.label} style={[styles.factCard, { width: layout.twoUpWidth }]}>
+                <Text style={styles.factValue}>{fact.value}</Text>
+                <Text style={styles.factLabel}>{fact.label}</Text>
+              </View>
+            ))}
+          </View>
+        </SectionBlock>
+
+        {current.tiers?.length ? (
+          <SectionBlock eyebrow="Billets" title="Places">
+            <View style={styles.stack}>
+              {current.tiers.map((tier) => {
+                const sold = tier.inventoryTotal - tier.inventoryRemaining;
+                return (
+                  <View key={tier.key} style={styles.tierCard}>
+                    <View style={styles.tierTop}>
+                      <View>
+                        <Text style={styles.tierName}>{tier.name}</Text>
+                        <Text style={styles.tierMeta}>{tier.price}</Text>
+                      </View>
+                      <Text style={styles.tierMeta}>{tier.inventoryRemaining} restants</Text>
+                    </View>
+                    <ProgressBar value={sold} total={tier.inventoryTotal} tone={tier === firstTier ? 'orange' : 'green'} />
+                  </View>
+                );
+              })}
+            </View>
+          </SectionBlock>
+        ) : null}
+
+        <SectionBlock eyebrow="Programme" title="Moments">
+          <View style={styles.stack}>
+            {scheduleItems.slice(0, 4).map((item, index) => (
+              <View key={`${item.time}-${index}`} style={styles.timelineRow}>
+                <Text style={styles.timelineTime}>{item.time}</Text>
+                <View style={styles.timelineBody}>
+                  <Text style={styles.timelineTitle}>{item.title}</Text>
+                  <Text style={styles.timelineMeta}>{item.meta}</Text>
+                </View>
+              </View>
+            ))}
+          </View>
+        </SectionBlock>
+
+        <SectionBlock eyebrow="Encore" title="Aussi bien">
+          <View style={styles.stack}>
+            {model.relatedEvents.slice(0, 4).map((item) => (
+              <VisualCard
+                key={item.id}
+                title={item.title}
+                subtitle={item.category}
+                meta={`${item.location} • ${item.date}`}
+                imageUrl={item.imageUrl}
+                badge={item.price}
+                onPress={() => router.push({ pathname: '/event/[id]', params: { id: item.id } })}
+              />
+            ))}
+          </View>
+        </SectionBlock>
       </ScrollView>
 
-      {/* CTA */}
-      <View style={styles.cta}>
-        <View style={styles.priceBlock}>
-          <Text style={styles.priceLabel}>Prix</Text>
-          <Text style={styles.price}>{event.price}</Text>
+      <View style={[styles.bottomBar, layout.isCompact && styles.bottomBarCompact]}>
+        <View>
+          <Text style={styles.bottomMeta}>{current.location}</Text>
+          <Text style={styles.bottomTitle}>{current.price}</Text>
         </View>
-        <Pressable style={[styles.buyBtn, { backgroundColor: event.color }]}>
-          <Text style={styles.buyBtnText}>Acheter un billet</Text>
+        <Pressable style={[styles.bottomButton, layout.isCompact && styles.bottomButtonCompact]} onPress={() => router.push({ pathname: '/reserver/[id]', params: { id: current.id } })}>
+          <Text style={styles.bottomButtonText}>Y aller</Text>
         </Pressable>
       </View>
     </SafeAreaView>
@@ -67,28 +160,44 @@ export default function EventDetail() {
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: colors.bg },
+  safeArea: { flex: 1, backgroundColor: colors.bgDeep },
   container: { flex: 1 },
-  hero: { paddingHorizontal: 20, paddingTop: 16, paddingBottom: 24, borderBottomWidth: 3, marginBottom: 24, gap: 12 },
-  back: { marginBottom: 8 },
-  backText: { fontFamily: typography.fontFamily.medium, fontSize: typography.fontSize.sm, color: colors.orange },
-  categoryBadge: { alignSelf: 'flex-start', paddingHorizontal: 12, paddingVertical: 5, borderRadius: 100 },
-  categoryText: { fontFamily: typography.fontFamily.medium, fontSize: typography.fontSize.xs },
-  title: { fontFamily: typography.fontFamily.bold, fontSize: typography.fontSize['2xl'], color: colors.text, lineHeight: 36 },
-  organizer: { fontFamily: typography.fontFamily.regular, fontSize: typography.fontSize.sm, color: colors.textSecondary },
-  details: { paddingHorizontal: 20, gap: 16, marginBottom: 28 },
-  detailRow: { flexDirection: 'row', gap: 14, backgroundColor: colors.card, borderRadius: 12, padding: 14, borderWidth: 1, borderColor: colors.border },
-  detailIcon: { fontSize: 22 },
-  detailInfo: { gap: 4 },
-  detailLabel: { fontFamily: typography.fontFamily.regular, fontSize: typography.fontSize.xs, color: colors.textMuted },
-  detailValue: { fontFamily: typography.fontFamily.semiBold, fontSize: typography.fontSize.base, color: colors.text },
-  section: { paddingHorizontal: 20, marginBottom: 120 },
-  sectionTitle: { fontFamily: typography.fontFamily.bold, fontSize: typography.fontSize.lg, color: colors.text, marginBottom: 12 },
-  description: { fontFamily: typography.fontFamily.regular, fontSize: typography.fontSize.base, color: colors.textSecondary, lineHeight: 26 },
-  cta: { position: 'absolute', bottom: 0, left: 0, right: 0, flexDirection: 'row', alignItems: 'center', backgroundColor: colors.card, borderTopWidth: 1, borderTopColor: colors.border, paddingHorizontal: 20, paddingVertical: 16, paddingBottom: 32, gap: 16 },
-  priceBlock: { gap: 2 },
-  priceLabel: { fontFamily: typography.fontFamily.regular, fontSize: typography.fontSize.xs, color: colors.textMuted },
-  price: { fontFamily: typography.fontFamily.bold, fontSize: typography.fontSize.lg, color: colors.text },
-  buyBtn: { flex: 1, borderRadius: 12, paddingVertical: 14, alignItems: 'center' },
-  buyBtnText: { fontFamily: typography.fontFamily.bold, fontSize: typography.fontSize.base, color: colors.black },
+  content: { paddingTop: 14 },
+  back: { flexDirection: 'row', alignItems: 'center', gap: 8, alignSelf: 'flex-start' },
+  backText: { fontFamily: typography.fontFamily.semiBold, fontSize: typography.fontSize.sm, color: colors.orange },
+  heroImage: { borderRadius: 30, overflow: 'hidden', padding: 18, justifyContent: 'flex-end', gap: 10 },
+  heroImageInner: { borderRadius: 30 },
+  heroShade: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(17,17,17,0.28)' },
+  heroTop: { position: 'absolute', top: 16, left: 16, right: 16, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  heroPrice: { borderRadius: 999, overflow: 'hidden', paddingHorizontal: 12, paddingVertical: 7, backgroundColor: 'rgba(255,255,255,0.88)', fontFamily: typography.fontFamily.semiBold, fontSize: typography.fontSize.sm, color: colors.text },
+  heroCategory: { fontFamily: typography.fontFamily.medium, fontSize: typography.fontSize.sm, color: colors.ivory },
+  heroTitle: { fontFamily: typography.fontFamily.bold, color: colors.ivory },
+  heroMetaRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  heroMetaChip: { flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 999, backgroundColor: 'rgba(17,17,17,0.3)', paddingHorizontal: 10, paddingVertical: 7 },
+  heroMetaText: { fontFamily: typography.fontFamily.medium, fontSize: typography.fontSize.sm, color: colors.ivory },
+  description: { fontFamily: typography.fontFamily.regular, fontSize: typography.fontSize.base, lineHeight: 23, color: colors.textSecondary },
+  ctaRow: { flexDirection: 'row' },
+  primaryButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, flex: 1, borderRadius: 18, backgroundColor: colors.orange, paddingVertical: 14 },
+  primaryButtonText: { fontFamily: typography.fontFamily.semiBold, fontSize: typography.fontSize.base, color: colors.black },
+  factGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  factCard: { borderRadius: 22, padding: 14, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.card },
+  factValue: { fontFamily: typography.fontFamily.bold, fontSize: typography.fontSize.lg, color: colors.text },
+  factLabel: { fontFamily: typography.fontFamily.medium, fontSize: typography.fontSize.sm, color: colors.textMuted },
+  stack: { gap: 12 },
+  tierCard: { borderRadius: 22, padding: 16, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border, gap: 10 },
+  tierTop: { flexDirection: 'row', justifyContent: 'space-between', gap: 10 },
+  tierName: { fontFamily: typography.fontFamily.semiBold, fontSize: typography.fontSize.base, color: colors.text },
+  tierMeta: { fontFamily: typography.fontFamily.medium, fontSize: typography.fontSize.sm, color: colors.textMuted },
+  timelineRow: { flexDirection: 'row', gap: 12, alignItems: 'flex-start', borderRadius: 22, padding: 14, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border },
+  timelineTime: { width: 54, fontFamily: typography.fontFamily.bold, fontSize: typography.fontSize.sm, color: colors.orange },
+  timelineBody: { flex: 1, gap: 3 },
+  timelineTitle: { fontFamily: typography.fontFamily.semiBold, fontSize: typography.fontSize.base, color: colors.text },
+  timelineMeta: { fontFamily: typography.fontFamily.medium, fontSize: typography.fontSize.sm, color: colors.textSecondary },
+  bottomBar: { position: 'absolute', left: 16, right: 16, bottom: 16, borderRadius: 24, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.borderStrong, padding: 14, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 12 },
+  bottomBarCompact: { alignItems: 'stretch' },
+  bottomMeta: { fontFamily: typography.fontFamily.medium, fontSize: typography.fontSize.sm, color: colors.textMuted },
+  bottomTitle: { fontFamily: typography.fontFamily.bold, fontSize: typography.fontSize.lg, color: colors.text },
+  bottomButton: { borderRadius: 18, backgroundColor: colors.orange, paddingHorizontal: 18, paddingVertical: 12 },
+  bottomButtonCompact: { alignItems: 'center' },
+  bottomButtonText: { fontFamily: typography.fontFamily.semiBold, fontSize: typography.fontSize.base, color: colors.black },
 });

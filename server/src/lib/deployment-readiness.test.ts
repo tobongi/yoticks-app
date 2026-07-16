@@ -44,3 +44,9 @@ test('ships the image encoder as a production runtime dependency', () => {
     'pngjs must be installed by production-only dependency installs',
   );
 });
+
+test('installs the OpenSSL runtime required by Prisma in the production image', () => {
+  const dockerfile = readFileSync(new URL('../../Dockerfile', import.meta.url), 'utf8');
+
+  assert.match(dockerfile, /apt-get install[^\n]*openssl/);
+});

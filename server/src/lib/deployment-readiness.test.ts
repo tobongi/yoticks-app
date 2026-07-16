@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import { validateProductionEnvironment } from './deployment-readiness';
 
@@ -31,4 +32,15 @@ test('rejects production secrets, reset delivery, or SQLite storage that are uns
 test('does not impose production hosting rules on local development and tests', () => {
   assert.doesNotThrow(() => validateProductionEnvironment({ NODE_ENV: 'test' }));
   assert.doesNotThrow(() => validateProductionEnvironment({ NODE_ENV: 'development' }));
+});
+
+test('ships the image encoder as a production runtime dependency', () => {
+  const packageJson = JSON.parse(
+    readFileSync(new URL('../../package.json', import.meta.url), 'utf8'),
+  ) as { dependencies?: Record<string, string> };
+
+  assert.ok(
+    packageJson.dependencies?.pngjs,
+    'pngjs must be installed by production-only dependency installs',
+  );
 });

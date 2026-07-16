@@ -31,9 +31,9 @@ export type MbiYoPayinResponse = {
   message?: string;
   data?: {
     transaction_id?: string;
-    amount?: number;
-    fee?: number;
-    charged_amount?: number;
+    amount?: number | string;
+    fee?: number | string;
+    charged_amount?: number | string;
     currency?: string;
     order_id?: string;
     payment_method?: 'mobile_money';
@@ -71,8 +71,8 @@ export type MbiYoTransactionStatusResponse = {
   message?: string;
   data?: MbiYoTransaction & {
     transaction_id?: string;
-    fee?: number;
-    charged_amount?: number;
+    fee?: number | string;
+    charged_amount?: number | string;
     currency?: string;
     order_id?: string;
     status?: string;
@@ -139,7 +139,7 @@ export async function listTransactions(options: { page?: number | 'all'; limit?:
   const query = new URLSearchParams();
   if (options.page !== undefined) query.set('page', String(options.page));
   if (options.limit !== undefined) query.set('limit', String(options.limit));
-  const response = await fetch(`${baseUrl}/api/v1/transactions${query.size ? `?${query}` : ''}`, {
+  const response = await fetch(`${baseUrl}/api/v1/merchant/transactions${query.size ? `?${query}` : ''}`, {
     headers: { Authorization: `Bearer ${apiKey}` },
   });
   const payload = await response.json() as MbiYoTransactionsResponse & { message?: string };

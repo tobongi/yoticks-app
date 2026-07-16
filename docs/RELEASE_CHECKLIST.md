@@ -43,8 +43,11 @@
 
 ## Store gate
 
+- [ ] Railway deploys from `/server` using the committed Dockerfile and `railway.json`; `/api/health` verifies the database connection.
+- [ ] A persistent Railway volume is mounted at `/data` and `YOTICKS_DB_FILE=/data/yoticks.db`; a restart preserves users, checkouts, transactions, and tickets.
 - [ ] `npm run payments:webhook:check` returns HTTP 200 with `ok: true` from the exact deployed `MBIYOPAY_WEBHOOK_URL`.
 - [ ] The MBIYOPAY dashboard callback uses `/api/payments/mobile-money/webhook`; a signed sandbox callback receives HTTP 200 and an unsigned callback receives HTTP 401.
+- [ ] Immediate-success, delayed-success, amount-mismatch, repeated-refresh, and repeated-webhook sandbox cases preserve the payment state machine and issue tickets exactly once.
 - [ ] The server is deployed with `PAID_CHECKOUT_ENABLED=true` before the Expo binary is built with `EXPO_PUBLIC_ENABLE_PAID_CHECKOUT=true`.
 
 - [ ] App icons, adaptive icon, monochrome icon, splash, screenshots, description, keywords, support URL, privacy URL, and terms URL are uploaded.

@@ -6,7 +6,7 @@
     "dev": "tsx watch src/index.ts",
     "build": "tsc",
     "typecheck": "tsc --noEmit",
-    "test": "tsx --test src/lib/store.test.ts src/lib/venue-image.test.ts src/lib/seed-database.test.ts src/lib/mbiyopay.test.ts src/lib/mbiyopay-transactions.test.ts src/lib/payment-state.test.ts src/lib/mobile-money-options.test.ts src/lib/webhook-readiness.test.ts src/routes/auth.test.ts src/routes/payment-security.test.ts src/routes/mbiyopay-webhook.test.ts src/routes/providers.test.ts src/routes/saved.test.ts src/e2e.test.ts",
+    "test": "tsx --test src/lib/store.test.ts src/lib/venue-image.test.ts src/lib/seed-database.test.ts src/lib/mbiyopay.test.ts src/lib/mbiyopay-transactions.test.ts src/lib/payment-state.test.ts src/lib/mobile-money-options.test.ts src/lib/webhook-readiness.test.ts src/lib/deployment-readiness.test.ts src/routes/auth.test.ts src/routes/payment-security.test.ts src/routes/mobile-money-payment.test.ts src/routes/mbiyopay-webhook.test.ts src/routes/providers.test.ts src/routes/saved.test.ts src/e2e.test.ts",
     "db:generate": "node scripts/prisma.mjs generate",
     "db:push": "node scripts/prisma.mjs push",
     "db:seed": "node scripts/prisma.mjs seed",
@@ -24,8 +24,7 @@
     "express-async-errors": "^3.1.1",
     "express-rate-limit": "^7.4.1",
     "helmet": "^8.0.0",
-    "jsonwebtoken": "^9.0.2",
-    "yoticks-app": "file:.."
+    "jsonwebtoken": "^9.0.2"
   },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",

@@ -12,6 +12,7 @@ import { venuesRouter } from './routes/venues';
 import { ticketsRouter } from './routes/tickets';
 import { notificationsRouter } from './routes/notifications';
 import { discoveryRouter } from './routes/discovery';
+import { store } from './lib/store';
 
 export const app = express();
 
@@ -33,7 +34,8 @@ app.get('/api/payments/mobile-money/webhook', handleMobileMoneyWebhookReadiness)
 app.get('/api/mbiyopay/notify', handleMobileMoneyWebhookReadiness);
 app.post('/api/mbiyopay/notify', handleMobileMoneyWebhook);
 
-app.get('/api/health', (_req, res) => {
+app.get('/api/health', async (_req, res) => {
+  await store.healthCheck();
   res.json({ ok: true, app: 'YoTicks backend' });
 });
 

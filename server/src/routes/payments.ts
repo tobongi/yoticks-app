@@ -5,8 +5,33 @@ import { store } from '../lib/store';
 import { finalizePayment, getTransactionStatus, initiatePayin, listTransactions, resendWebhook, verifyWebhookSignature } from '../lib/mbiyopay';
 import { getMobileMoneyCountryOptions, validateMobileMoneyInput } from '../lib/payment-state';
 import { getWebhookReadiness, isPaidCheckoutEnabled } from '../lib/webhook-readiness';
+import type { PublicMobileMoneyTransaction } from '../lib/store';
 
 export const paymentsRouter = Router();
+
+async function reconcileMobileMoneyTransaction(transaction: PublicMobileMoneyTransaction, userId: string) {
+  if (transaction.status !== 'pending' || !transaction.providerTransactionId) return transaction;
+
+  const provider = await getTransactionStatus(transaction.providerTransactionId);
+  const providerData = provider.data;
+  if (!providerData) return transaction;
+
+  await store.applyMobileMoneyWebhook({
+    checkoutSessionId: providerData.order_id,
+    providerTransactionId: providerData.transaction_id ?? transaction.providerTransactionId,
+    status: providerData.status ?? 'pending',
+    providerAmount: providerData.amount,
+    providerCurrency: providerData.currency,
+    providerFee: providerData.fee,
+    chargedAmount: providerData.charged_amount,
+    instructions: providerData.instructions,
+    authMode: providerData.auth_mode,
+    redirectUrl: providerData.redirect_url,
+    rawResponse: JSON.stringify(provider),
+  });
+
+  return (await store.getMobileMoneyTransaction(transaction.id, userId)) ?? transaction;
+}
 
 export function handleMobileMoneyWebhookReadiness(_req: Request, res: Response) {
   const readiness = getWebhookReadiness(process.env);
@@ -153,7 +178,7 @@ paymentsRouter.post('/mobile-money/initiate', async (req: AuthRequest, res) => {
     checkoutSessionId: session.id,
     userId: req.userId!,
     providerTransactionId: providerData.transaction_id,
-    status: providerData.status ?? 'pending',
+    status: 'pending',
     network: normalizedInput.network,
     phoneNumber: normalizedInput.phoneNumber,
     countryCode: normalizedInput.countryCode,
@@ -167,7 +192,15 @@ paymentsRouter.post('/mobile-money/initiate', async (req: AuthRequest, res) => {
     redirectUrl: providerData.redirect_url,
     rawResponse: JSON.stringify(providerResponse),
   });
-  return res.status(201).json({ transaction });
+  let reconciled = transaction;
+  if (transaction.providerTransactionId) {
+    try {
+      reconciled = await reconcileMobileMoneyTransaction(transaction, req.userId!);
+    } catch (error) {
+      console.warn('[YoTicks payments] Provider status verification deferred:', error instanceof Error ? error.message : error);
+    }
+  }
+  return res.status(201).json({ transaction: reconciled });
 });
 
 paymentsRouter.get('/mobile-money/options', (_req, res) => {
@@ -192,23 +225,8 @@ paymentsRouter.get('/mobile-money/:id/refresh', async (req: AuthRequest, res) =>
   if (!transaction) return res.status(404).json({ error: 'Transaction introuvable' });
   if (transaction.status !== 'pending' || !transaction.providerTransactionId) return res.json({ transaction });
 
-  const provider = await getTransactionStatus(transaction.providerTransactionId);
-  const providerData = provider.data;
-  await store.applyMobileMoneyWebhook({
-    checkoutSessionId: transaction.checkoutSessionId,
-    providerTransactionId: providerData?.transaction_id ?? transaction.providerTransactionId,
-    status: providerData?.status ?? 'pending',
-    providerAmount: providerData?.amount,
-    providerCurrency: providerData?.currency,
-    providerFee: providerData?.fee,
-    chargedAmount: providerData?.charged_amount,
-    instructions: providerData?.instructions,
-    authMode: providerData?.auth_mode,
-    redirectUrl: providerData?.redirect_url,
-    rawResponse: JSON.stringify(provider),
-  });
-  const refreshed = await store.getMobileMoneyTransaction(req.params.id, req.userId!);
-  return res.json({ transaction: refreshed ?? transaction });
+  const refreshed = await reconcileMobileMoneyTransaction(transaction, req.userId!);
+  return res.json({ transaction: refreshed });
 });
 
 paymentsRouter.post('/mobile-money/:id/finalize', async (req: AuthRequest, res) => {
@@ -223,7 +241,8 @@ paymentsRouter.post('/mobile-money/:id/finalize', async (req: AuthRequest, res) 
   }
 
   await finalizePayment(transaction.providerTransactionId, otp.trim());
-  return res.status(202).json({ transaction });
+  const refreshed = await reconcileMobileMoneyTransaction(transaction, req.userId!);
+  return res.status(202).json({ transaction: refreshed });
 });
 
 paymentsRouter.post('/mobile-money/:id/resend-webhook', async (req: AuthRequest, res) => {

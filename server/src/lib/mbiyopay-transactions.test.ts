@@ -14,7 +14,7 @@ test('lists MBIYOPAY transactions with the server-only bearer key and pagination
 
   try {
     await listTransactions({ page: 2, limit: 10 });
-    assert.equal(request?.url, 'https://dashboard.mbiyo.africa/api/v1/transactions?page=2&limit=10');
+    assert.equal(request?.url, 'https://dashboard.mbiyo.africa/api/v1/merchant/transactions?page=2&limit=10');
     assert.equal(request?.headers.get('Authorization'), 'Bearer server-test-key');
   } finally {
     globalThis.fetch = originalFetch;

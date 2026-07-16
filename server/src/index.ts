@@ -1,13 +1,11 @@
 import './env';
 import { app } from './app';
 import { validateProductionPaymentEnvironment } from './lib/webhook-readiness';
+import { validateProductionEnvironment } from './lib/deployment-readiness';
 
 const PORT = Number(process.env.PORT) || 4000;
 
-if (process.env.NODE_ENV === 'production' && !process.env.PASSWORD_RESET_WEBHOOK_URL) {
-  throw new Error('PASSWORD_RESET_WEBHOOK_URL is required in production.');
-}
-
+validateProductionEnvironment(process.env);
 validateProductionPaymentEnvironment(process.env);
 
 function startServer(attempt = 0) {

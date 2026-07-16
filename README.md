@@ -112,7 +112,7 @@ MBIYOPAY production configuration is server-only: set `MBIYOPAY_API_KEY`, `MBIYO
 
 Paid checkout has two independent switches: `PAID_CHECKOUT_ENABLED=true` on the server and `EXPO_PUBLIC_ENABLE_PAID_CHECKOUT=true` in the Expo build. Production server startup refuses the server switch when the provider key, signature secret, public HTTPS host, or canonical callback path is missing. The callback route answers `GET` with a redacted readiness document and accepts only correctly signed provider `POST` requests.
 
-The server converts application amounts to MBIYOPAY's lowest denomination, verifies payment amounts and currencies, supports MBIYOPAY transaction-status refresh and reconciliation, supports webhook resend recovery, and supports the provider's PIN finalization flow. A successful finalize response is still pending until the signed webhook or status refresh confirms the payment.
+The server converts application amounts to MBIYOPAY's lowest denomination and validates provider transaction ID, order ID, amount, and currency before issuing inventory. Initiation, PIN finalization, manual refresh, webhook handling, and reconciliation all use an authenticated provider-status lookup. Repeated confirmations are idempotent and issue the requested tickets exactly once.
 
 For sandbox testing, use the MBIYOPAY Test API Key with the same API base URL. The documented CD test numbers ending in `0000`, `1111`, `2222`, `3333`, and `9999` simulate successful, pending, and failed transactions without real money. Sandbox transactions are isolated from live balances.
 
@@ -123,6 +123,8 @@ Production activation order is strict:
 3. Keep both paid-checkout switches false and run `npm run payments:webhook:check`. It must return HTTP 200 and report `ok: true`.
 4. Run a signed sandbox payment, close the app while it is pending, and confirm the webhook issues exactly one ticket.
 5. Set `PAID_CHECKOUT_ENABLED=true`, redeploy the API, set `EXPO_PUBLIC_ENABLE_PAID_CHECKOUT=true`, and create fresh store binaries.
+
+The complete Railway setup, persistent-volume contract, activation procedure, and incident recovery steps are in [`docs/PAYMENTS_DEPLOYMENT.md`](docs/PAYMENTS_DEPLOYMENT.md).
 
 The checkout asks the attendee to select the mobile-money country and currency explicitly. Pending payments poll automatically, show a visible 90-second timeout and manual refresh action, and failed/cancelled attempts expose a fresh retry action. A checkout-session record or provider screen is never treated as payment.
 

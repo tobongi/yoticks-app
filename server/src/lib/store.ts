@@ -1,6 +1,6 @@
 import { execFileSync } from 'node:child_process';
 import { mkdirSync } from 'node:fs';
-import { dirname, relative, resolve } from 'node:path';
+import { basename, dirname, relative, resolve } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { PrismaClient } from '@prisma/client';
 import { countCities } from './cities';
@@ -276,7 +276,9 @@ export type ProviderDirectoryResponse = {
   };
 };
 
-const SERVER_ROOT = resolve(__dirname, '..', '..');
+const moduleRoot = resolve(__dirname, '..', '..');
+const detectedServerRoot = basename(moduleRoot) === 'dist' ? dirname(moduleRoot) : moduleRoot;
+const SERVER_ROOT = resolve(process.env.YOTICKS_SERVER_ROOT ?? detectedServerRoot);
 const SERVER_PRISMA_DIR = resolve(SERVER_ROOT, 'prisma');
 const DEFAULT_DB_FILE = process.env.YOTICKS_DB_FILE
   ? resolve(process.env.YOTICKS_DB_FILE)
@@ -306,6 +308,12 @@ function normalizeEmail(email: string) {
 function parsePrice(price: string) {
   const value = Number(price.replace(/[^\d]/g, ''));
   return Number.isFinite(value) ? value : 0;
+}
+
+function optionalFiniteNumber(value: number | string | null | undefined): number | null {
+  if (value === null || value === undefined) return null;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
 }
 
 function formatMoney(amount: number) {
@@ -843,6 +851,10 @@ function monthBucket(date: Date) {
 
 export class DataStore {
   constructor(private readonly prisma: PrismaClient) {}
+
+  async healthCheck(): Promise<void> {
+    await this.prisma.$queryRaw`SELECT 1`;
+  }
 
   async close() {
     await this.prisma.$disconnect();
@@ -2209,8 +2221,8 @@ export class DataStore {
     countryCode: string;
     currency: string;
     amount: number;
-    providerFee?: number | null;
-    chargedAmount?: number | null;
+    providerFee?: number | string | null;
+    chargedAmount?: number | string | null;
     providerStatus?: string | null;
     instructions?: string | null;
     authMode?: string | null;
@@ -2229,8 +2241,8 @@ export class DataStore {
         countryCode: input.countryCode,
         currency: input.currency,
         amount: input.amount,
-        providerFee: input.providerFee ?? null,
-        chargedAmount: input.chargedAmount ?? null,
+        providerFee: optionalFiniteNumber(input.providerFee),
+        chargedAmount: optionalFiniteNumber(input.chargedAmount),
         providerStatus: input.providerStatus ?? input.status ?? 'pending',
         instructions: input.instructions ?? null,
         authMode: input.authMode ?? null,
@@ -2313,6 +2325,16 @@ export class DataStore {
     if (input.providerCurrency && input.providerCurrency.trim().toUpperCase() !== transaction.currency.toUpperCase()) return false;
 
     const nextStatus = preservePaymentStatus(transaction.status as PaymentStatus, normalizeProviderStatus(input.status));
+    if (
+      nextStatus === 'successful' &&
+      (input.checkoutSessionId !== session.id ||
+        !input.providerTransactionId ||
+        input.providerAmount === undefined ||
+        input.providerAmount === null ||
+        !input.providerCurrency)
+    ) {
+      return false;
+    }
     if (transaction.status === 'successful' && nextStatus === 'successful' && transaction.reservationIssuedAt) return true;
     if (nextStatus === 'successful') {
       const claim = await this.prisma.mobileMoneyTransaction.updateMany({
@@ -2332,8 +2354,9 @@ export class DataStore {
       data: {
         status: nextStatus,
         providerStatus: input.status,
-        providerFee: input.providerFee === undefined ? transaction.providerFee : Number(input.providerFee),
-        chargedAmount: input.chargedAmount === undefined ? transaction.chargedAmount : Number(input.chargedAmount),
+        providerFee: input.providerFee === undefined ? transaction.providerFee : optionalFiniteNumber(input.providerFee) ?? transaction.providerFee,
+        chargedAmount:
+          input.chargedAmount === undefined ? transaction.chargedAmount : optionalFiniteNumber(input.chargedAmount) ?? transaction.chargedAmount,
         instructions: input.instructions ?? transaction.instructions,
         authMode: input.authMode ?? transaction.authMode,
         redirectUrl: input.redirectUrl ?? transaction.redirectUrl,

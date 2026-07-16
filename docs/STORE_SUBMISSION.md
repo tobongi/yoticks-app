@@ -19,9 +19,11 @@ Set these as EAS/hosting secrets or environment variables; never commit their va
 - `CORS_ORIGINS` and `CLIENT_URL`: exact production web origins. Wildcard Vercel origins are not accepted.
 - `PASSWORD_RESET_WEBHOOK_URL`: HTTPS automation/email endpoint accepting `{to,name,resetUrl,expiresInMinutes}`. Production startup fails without it.
 - `PASSWORD_RESET_DEEP_LINK_BASE`: `yoticks://auth/reset`.
-- `DATABASE_URL`: managed production database connection supported by the chosen deployment schema.
+- `YOTICKS_DB_FILE`: absolute SQLite path on persistent hosting storage. Railway production uses `/data/yoticks.db` with a volume mounted at `/data`; startup rejects ephemeral Railway storage.
 
 Before enabling either paid-checkout switch, run `npm run payments:webhook:check` against the deployed host and complete a signed sandbox payment with the app closed. The ticket must be issued exactly once by the webhook and appear after the next app launch. A 404, 401 readiness request, non-HTTPS URL, alias callback path, or unsigned success response blocks paid release.
+
+Follow [`PAYMENTS_DEPLOYMENT.md`](PAYMENTS_DEPLOYMENT.md) for the reproducible Railway service, volume, secrets, custom-domain, sandbox, and recovery procedure.
 
 ## EAS setup and builds
 

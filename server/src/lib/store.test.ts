@@ -359,6 +359,21 @@ test('organizer can scan a ticket and manually override its status', async () =>
     assert.equal(scanned.outcome, 'checked_in');
     assert.equal(scanned.ticket?.status, 'used');
     assert.equal(scanned.ticket?.gate, 'North Gate');
+    assert.equal(scanned.scan?.gate, 'North Gate');
+    assert.equal(scanned.scan?.scannerId, 'organizer_demo');
+    assert.equal(scanned.scan?.scannerRole, 'organizer');
+    assert.equal(scanned.scan?.source, 'qr');
+    assert.equal(scanned.scan?.outcome, 'checked_in');
+    assert.ok(scanned.scan?.scannedAt);
+
+    const repeated = await store.scanOrganizerTicket(
+      'organizer_demo',
+      'yoticks-ticket:YT-2026-004|event:1|seat:A-18',
+      'North Gate',
+    );
+    assert.equal(repeated.outcome, 'already_used');
+    assert.equal(repeated.scan?.id, scanned.scan?.id);
+    assert.equal(repeated.scan?.scannedAt, scanned.scan?.scannedAt);
 
     const overridden = await store.updateOrganizerTicket(scanned.ticket!.id, 'organizer_demo', {
       status: 'cancelled',
@@ -427,6 +442,47 @@ test('organizer can complete merchant setup and unlock the next checkout session
     assert.equal(account.status, 'ready');
     assert.equal(session?.status, 'ready_for_payment');
     assert.equal(session?.merchantAccount.status, 'ready');
+    await isolatedStore.close();
+  } finally {
+    rmSync(storeDir, { recursive: true, force: true });
+  }
+});
+
+test('restores the newest mobile-money attempt for a checkout after the app closes', async () => {
+  const storeDir = mkdtempSync(join(tmpdir(), 'yoticks-payment-resume-'));
+  const filePath = join(storeDir, 'state.json');
+
+  try {
+    const isolatedStore = await createDataStore(filePath);
+    const session = await isolatedStore.createCheckoutSession('user_demo', '1', 'standard', 'mbiyopay_mobile_money');
+    assert.ok(session);
+    await isolatedStore.createMobileMoneyTransaction({
+      checkoutSessionId: session!.id,
+      userId: 'user_demo',
+      providerTransactionId: 'provider_failed',
+      status: 'failed',
+      network: 'vodacom',
+      phoneNumber: '+243812345678',
+      countryCode: 'CD',
+      currency: 'CDF',
+      amount: session!.amount,
+    });
+    const newest = await isolatedStore.createMobileMoneyTransaction({
+      checkoutSessionId: session!.id,
+      userId: 'user_demo',
+      providerTransactionId: 'provider_pending',
+      status: 'pending',
+      network: 'airtel',
+      phoneNumber: '+243812345678',
+      countryCode: 'CD',
+      currency: 'CDF',
+      amount: session!.amount,
+    });
+
+    const restored = await isolatedStore.getLatestMobileMoneyTransactionForCheckout(session!.id, 'user_demo');
+    assert.equal(restored?.id, newest.id);
+    assert.equal(restored?.network, 'airtel');
+    assert.equal(restored?.countryCode, 'CD');
     await isolatedStore.close();
   } finally {
     rmSync(storeDir, { recursive: true, force: true });

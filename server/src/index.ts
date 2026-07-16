@@ -1,7 +1,14 @@
 import './env';
 import { app } from './app';
+import { validateProductionPaymentEnvironment } from './lib/webhook-readiness';
 
 const PORT = Number(process.env.PORT) || 4000;
+
+if (process.env.NODE_ENV === 'production' && !process.env.PASSWORD_RESET_WEBHOOK_URL) {
+  throw new Error('PASSWORD_RESET_WEBHOOK_URL is required in production.');
+}
+
+validateProductionPaymentEnvironment(process.env);
 
 function startServer(attempt = 0) {
   const server = app.listen(PORT, () => {

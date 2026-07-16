@@ -6,11 +6,14 @@ import QRCode from 'react-native-qrcode-svg';
 import { FALLBACK_TICKETS, getTicket, type BackendTicket } from '../../src/backend';
 import { useAuth } from '../../src/auth';
 import { useLiveRefresh } from '../../src/live-refresh';
-import { ArrowLeftIcon, CalendarIcon, CloseIcon, MapIcon, QrIcon, TicketIcon, UserIcon } from '../../src/icons';
+import { ArrowLeftIcon, CloseIcon } from '../../src/icons';
 import { colors } from '../../src/theme/colors';
 import { typography } from '../../src/theme/typography';
 import { HeroPanel, LivedBackground, SectionBlock, StatRow } from '../../src/ui/lived-in';
 import { usePhoneLayout } from '../../src/ui/responsive';
+import { Pictogram, PictogramLabel, StatusSeal } from '../../src/ui/pictograms';
+import { getTicketVisual } from '../../src/ui/visual-language';
+import { SpeakButton } from '../../src/ui/speak-button';
 
 export default function TicketScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -40,6 +43,7 @@ export default function TicketScreen() {
 
   const current = ticket ?? FALLBACK_TICKETS[0];
   const valid = current.status === 'valid';
+  const ticketVisual = getTicketVisual(current.status);
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -59,7 +63,7 @@ export default function TicketScreen() {
             </View>
             <View style={styles.qrFrameLarge}>
               <QRCode value={`yoticks-ticket:${current.code}|event:${current.event.id}|seat:${current.seat}`} size={layout.qrSizeLarge} backgroundColor={colors.bg} color={colors.text} />
-              {valid ? <Animated.View style={[styles.scanLine, { transform: [{ translateY: scanLine }] }]} /> : <Text style={styles.usedStamp}>USED</Text>}
+              {valid ? <Animated.View style={[styles.scanLine, { transform: [{ translateY: scanLine }] }]} /> : <Text style={styles.usedStamp}>UTILISÉ</Text>}
             </View>
           </View>
         </View>
@@ -75,35 +79,36 @@ export default function TicketScreen() {
           <Text style={styles.backText}>Retour</Text>
         </Pressable>
 
-        <HeroPanel eyebrow={valid ? 'Pret' : 'Passe'} title={current.event.title} subtitle={`${current.event.location} • ${current.event.date}`} art={<QrIcon size={36} color={colors.orange} />}>
+        <HeroPanel eyebrow={ticketVisual.label} title={current.event.title} subtitle={`${current.event.location} • ${current.event.date}`} tone={ticketVisual.tone} art={<StatusSeal pictogram={ticketVisual.key} tone={ticketVisual.tone} label={ticketVisual.label} hint={ticketVisual.hint} size={68} />}>
           <StatRow items={[{ label: 'Code', value: current.code }, { label: 'Place', value: current.seat }, { label: 'Porte', value: current.gate ?? '-' }]} />
-          <Pressable style={styles.qrCard} onPress={() => setExpanded(true)}>
+          <Pressable accessibilityRole="button" accessibilityLabel="Agrandir mon code QR" accessibilityState={{ disabled: !valid }} style={styles.qrCard} onPress={() => setExpanded(true)}>
             <View style={styles.qrHeader}>
               <Text style={styles.qrLabel}>Mon QR</Text>
               <Text style={styles.qrHint}>{valid ? 'Toucher pour agrandir' : 'Deja scanne'}</Text>
             </View>
             <View style={styles.qrFrameSmall}>
               <QRCode value={`yoticks-ticket:${current.code}|event:${current.event.id}|seat:${current.seat}`} size={layout.qrSizeSmall} backgroundColor={colors.card} color={colors.text} />
-              {!valid ? <Text style={styles.usedStampSmall}>USED</Text> : null}
+              {!valid ? <Text style={styles.usedStampSmall}>UTILISÉ</Text> : null}
             </View>
           </Pressable>
         </HeroPanel>
 
         <SectionBlock eyebrow="Infos" title="A garder">
           <View style={styles.infoGrid}>
-            <InfoTile icon={<CalendarIcon size={16} color={colors.orange} />} label="Date" value={current.event.date} width={layout.twoUpWidth} />
-            <InfoTile icon={<MapIcon size={16} color={colors.orange} />} label="Lieu" value={current.event.location} width={layout.twoUpWidth} />
-            <InfoTile icon={<UserIcon size={16} color={colors.orange} />} label="Nom" value={current.holderName} width={layout.twoUpWidth} />
-            <InfoTile icon={<TicketIcon size={16} color={colors.orange} />} label="Statut" value={valid ? 'Valide' : 'Passe'} width={layout.twoUpWidth} />
+            <InfoTile icon={<Pictogram pictogram="history" size={38} />} label="Date" value={current.event.date} width={layout.twoUpWidth} />
+            <InfoTile icon={<Pictogram pictogram="map" tone="yellow" size={38} />} label="Lieu" value={current.event.location} width={layout.twoUpWidth} />
+            <InfoTile icon={<Pictogram pictogram="profile" tone="blue" size={38} />} label="Nom" value={current.holderName} width={layout.twoUpWidth} />
+            <InfoTile icon={<Pictogram pictogram={ticketVisual.key} tone={ticketVisual.tone} size={38} />} label="Statut" value={ticketVisual.label} width={layout.twoUpWidth} />
           </View>
         </SectionBlock>
 
         <SectionBlock eyebrow="Rappel" title="Avant la porte">
           <View style={styles.noteCard}>
-            <Text style={styles.noteLine}>1. Ouvrir le QR</Text>
-            <Text style={styles.noteLine}>2. Monter la luminosite</Text>
-            <Text style={styles.noteLine}>3. Montrer au staff</Text>
+            <PictogramLabel pictogram="ticket" tone="orange" label="Ouvre" />
+            <PictogramLabel pictogram="night" tone="yellow" label="Éclaire" />
+            <PictogramLabel pictogram="scan" tone="green" label="Montre" />
           </View>
+          <SpeakButton instruction="Ouvre ton billet, augmente la lumière de l'écran, puis montre le code QR à l'entrée." />
         </SectionBlock>
       </ScrollView>
     </SafeAreaView>
@@ -137,8 +142,7 @@ const styles = StyleSheet.create({
   infoIcon: { width: 32, height: 32, borderRadius: 12, backgroundColor: colors.cardHover, alignItems: 'center', justifyContent: 'center' },
   infoLabel: { fontFamily: typography.fontFamily.medium, fontSize: typography.fontSize.sm, color: colors.textMuted },
   infoValue: { fontFamily: typography.fontFamily.semiBold, fontSize: typography.fontSize.base, color: colors.text },
-  noteCard: { borderRadius: 24, padding: 18, backgroundColor: colors.black, gap: 8 },
-  noteLine: { fontFamily: typography.fontFamily.semiBold, fontSize: typography.fontSize.base, color: colors.ivory },
+  noteCard: { borderRadius: 24, padding: 18, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border, flexDirection: 'row', justifyContent: 'space-around', gap: 8 },
   modalBackdrop: { flex: 1, backgroundColor: 'rgba(17,17,17,0.55)', alignItems: 'center', justifyContent: 'center', padding: 20 },
   modalScrim: { ...StyleSheet.absoluteFill },
   modalCard: { width: '100%', borderRadius: 28, padding: 18, backgroundColor: colors.card, gap: 16 },

@@ -5,9 +5,10 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { FALLBACK_EVENTS, listOrganizerEvents, type BackendEvent } from '../../src/backend';
 import { useAuth } from '../../src/auth';
 import { useLiveRefresh } from '../../src/live-refresh';
-import { ClipboardIcon, SparkIcon } from '../../src/icons';
 import { colors } from '../../src/theme/colors';
 import { HeroPanel, LivedBackground, ScreenHeader, SectionBlock, VisualCard } from '../../src/ui/lived-in';
+import { Pictogram } from '../../src/ui/pictograms';
+import { ClipboardIcon } from '../../src/icons';
 
 export default function OrganizerEvents() {
   const { user, token } = useAuth();
@@ -21,15 +22,15 @@ export default function OrganizerEvents() {
     const fallback = FALLBACK_EVENTS.filter((event) => event.organizerId === user.id);
     setEvents(fallback);
     listOrganizerEvents(token ?? undefined, user.id).then(setEvents);
-  }, [refreshTick, token, user?.id]);
+  }, [refreshTick, token, user]);
 
   return (
     <SafeAreaView style={styles.safeArea}>
       <LivedBackground />
       <ScrollView style={styles.container} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <ScreenHeader eyebrow="Organizer" title="Mes events" />
-        <HeroPanel eyebrow="Catalogue" title={`${events.length} fiches`} subtitle="Creer. Ouvrir. Corriger." art={<SparkIcon size={36} color={colors.orange} />}>
-          <Pressable style={styles.primaryButton} onPress={() => router.push('/(organizer)/events/new' as never)}>
+        <ScreenHeader eyebrow="Organisateur" title="Mes sorties" />
+        <HeroPanel eyebrow="Événements" title={`${events.length} affiches`} subtitle="Créer ou modifier" art={<Pictogram pictogram="celebrate" tone="yellow" size={80} />}>
+          <Pressable accessibilityRole="button" accessibilityLabel="Créer un événement" style={styles.primaryButton} onPress={() => router.push('/(organizer)/events/new' as never)}>
             <Text style={styles.primaryButtonText}>Nouvel event</Text>
           </Pressable>
         </HeroPanel>

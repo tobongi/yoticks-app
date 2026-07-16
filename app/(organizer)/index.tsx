@@ -16,10 +16,10 @@ import {
 import { useAuth } from '../../src/auth';
 import { useLiveRefresh } from '../../src/live-refresh';
 import { buildOrganizerDigest } from '../../src/app-redesign';
-import { ClipboardIcon, MapIcon, SparkIcon, TicketIcon, UserIcon } from '../../src/icons';
 import { colors } from '../../src/theme/colors';
 import { typography } from '../../src/theme/typography';
 import { ActionTile, HeroPanel, InlineScroll, LivedBackground, ProgressBar, ScreenHeader, SectionBlock, StatRow, VisualCard } from '../../src/ui/lived-in';
+import { Pictogram, TicketStubArt } from '../../src/ui/pictograms';
 
 export default function OrganizerHome() {
   const { user, token } = useAuth();
@@ -39,7 +39,7 @@ export default function OrganizerHome() {
     getOrganizerDashboardStats(token ?? undefined, user.id).then(setDashboardStats);
     getOrganizerDashboard(token ?? undefined, user.id).then(setDashboard);
     getOrganizerScanStats(token ?? undefined, user.id).then(setScanStats);
-  }, [refreshTick, token, user?.id]);
+  }, [refreshTick, token, user]);
 
   const digest = useMemo(() => buildOrganizerDigest(dashboardStats, scanStats, events.length), [dashboardStats, events.length, scanStats]);
   const heroEvent = events[0];
@@ -48,12 +48,12 @@ export default function OrganizerHome() {
     <SafeAreaView style={styles.safeArea}>
       <LivedBackground />
       <ScrollView style={styles.container} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <ScreenHeader eyebrow="Organizer" title="Tableau de bord" side={<Pressable accessibilityRole="button" accessibilityLabel="Ouvrir le profil organisateur" style={styles.avatar} onPress={() => router.push('/(organizer)/profile' as never)}><Text style={styles.avatarText}>{getInitials(user?.name ?? 'Org')}</Text></Pressable>} />
+        <ScreenHeader eyebrow="Organisateur" title="Tableau de bord" side={<Pressable accessibilityRole="button" accessibilityLabel="Ouvrir le profil organisateur" style={styles.avatar} onPress={() => router.push('/(organizer)/profile' as never)}><Text style={styles.avatarText}>{getInitials(user?.name ?? 'Org')}</Text></Pressable>} />
 
-        <HeroPanel eyebrow="Live" title="Pilotage simple" subtitle="Ventes, scans, events." art={<SparkIcon size={36} color={colors.orange} />}>
+        <HeroPanel eyebrow="Entrée" title="Prêt à scanner" subtitle="Contrôle en direct" tone="green" art={<Pictogram pictogram="scan" tone="green" size={82} />}>
           <StatRow items={digest.stats} />
           {heroEvent ? (
-            <Pressable style={styles.heroEvent} onPress={() => router.push('/(organizer)/events' as never)}>
+            <Pressable accessibilityRole="button" accessibilityLabel="Ouvrir mes événements" style={styles.heroEvent} onPress={() => router.push('/(organizer)/events' as never)}>
               <ImageBackground source={{ uri: heroEvent.imageUrl }} style={styles.heroEventImage} imageStyle={styles.heroEventInner}>
                 <View style={styles.heroEventShade} />
                 <Text style={styles.heroEventLabel}>{heroEvent.category}</Text>
@@ -64,10 +64,10 @@ export default function OrganizerHome() {
         </HeroPanel>
 
         <InlineScroll contentContainerStyle={styles.tileRow}>
-          <ActionTile icon={<ClipboardIcon size={20} color={colors.orange} />} label="Scan" hint="Entree" onPress={() => router.push('/(organizer)/scan' as never)} />
-          <ActionTile icon={<TicketIcon size={20} color={colors.green} />} label="Billets" hint="Vendus" tone="green" onPress={() => router.push('/(organizer)/tickets' as never)} />
-          <ActionTile icon={<UserIcon size={20} color={colors.black} />} label="Events" hint="Editer" tone="yellow" onPress={() => router.push('/(organizer)/events' as never)} />
-          <ActionTile icon={<MapIcon size={20} color={colors.orange} />} label="Villes" hint="Zones" onPress={() => router.push('/(organizer)/cities' as never)} />
+          <ActionTile icon={<Pictogram pictogram="scan" tone="green" size={48} />} label="Scanner" tone="green" onPress={() => router.push('/(organizer)/scan' as never)} />
+          <ActionTile icon={<TicketStubArt tone="blue" size={54} />} label="Billets" tone="blue" onPress={() => router.push('/(organizer)/tickets' as never)} />
+          <ActionTile icon={<Pictogram pictogram="celebrate" tone="yellow" size={48} />} label="Événements" tone="yellow" onPress={() => router.push('/(organizer)/events' as never)} />
+          <ActionTile icon={<Pictogram pictogram="map" size={48} />} label="Villes" onPress={() => router.push('/(organizer)/cities' as never)} />
         </InlineScroll>
 
         {scanStats ? (
@@ -86,7 +86,7 @@ export default function OrganizerHome() {
           </SectionBlock>
         ) : null}
 
-        <SectionBlock eyebrow="Events" title="A suivre">
+        <SectionBlock eyebrow="Sorties" title="À suivre">
           <View style={styles.stack}>
             {events.slice(0, 5).map((event) => (
               <VisualCard
@@ -103,7 +103,7 @@ export default function OrganizerHome() {
         </SectionBlock>
 
         {dashboard ? (
-          <SectionBlock eyebrow="Funnel" title="Lecture rapide">
+          <SectionBlock eyebrow="Parcours" title="Lecture rapide">
             <View style={styles.stack}>
               <View style={styles.metricBlock}>
                 <Text style={styles.metricLabel}>Vues</Text>

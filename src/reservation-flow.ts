@@ -19,7 +19,7 @@ export type ReservationFlowAction = {
   label: string;
 };
 
-export type PaymentMethodKey = 'apple_pay' | 'google_pay' | 'paypal' | 'card';
+export type PaymentMethodKey = 'apple_pay' | 'google_pay' | 'paypal' | 'card' | 'mbiyopay_mobile_money';
 
 export type PaymentMethodOption = {
   key: PaymentMethodKey;
@@ -67,6 +67,13 @@ export function buildReservationFlow(event: BackendEvent, tier: ReservationTier)
 }
 
 export const PAYMENT_METHODS: PaymentMethodOption[] = [
+  {
+    key: 'mbiyopay_mobile_money',
+    label: 'Mobile money',
+    detail: 'MTN, Orange, Vodacom, Airtel et autres réseaux pris en charge',
+    badge: 'Recommandé',
+    actionLabel: 'Payer par mobile money',
+  },
   {
     key: 'apple_pay',
     label: 'Apple Pay',

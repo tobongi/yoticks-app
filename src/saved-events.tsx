@@ -3,6 +3,9 @@ import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import { listSavedEvents, saveEvent as backendSaveEvent, unsaveEvent as backendUnsaveEvent } from './backend';
 import { useAuth } from './auth';
 import { notifyLiveRefresh } from './live-refresh';
+import { mergeSavedEventIds, normalizeSavedEventIds, parseSavedEventIds } from './saved-events-core';
+
+export { mergeSavedEventIds, parseSavedEventIds } from './saved-events-core';
 
 const STORAGE_KEY = 'yoticks.savedEventIds';
 
@@ -25,33 +28,12 @@ function getStorage() {
   return window.localStorage;
 }
 
-function uniqueIds(ids: string[]) {
-  return Array.from(new Set(ids.map((id) => id.trim()).filter(Boolean)));
-}
-
-export function parseSavedEventIds(value: string | null) {
-  if (!value) {
-    return [];
-  }
-
-  try {
-    const parsed = JSON.parse(value) as unknown;
-    return Array.isArray(parsed) ? uniqueIds(parsed.filter((entry): entry is string => typeof entry === 'string')) : [];
-  } catch {
-    return [];
-  }
-}
-
-export function mergeSavedEventIds(primaryIds: string[], secondaryIds: string[]) {
-  return uniqueIds([...primaryIds, ...secondaryIds]);
-}
-
 export function readLocalSavedEventIds() {
   return parseSavedEventIds(getStorage()?.getItem(STORAGE_KEY) ?? null);
 }
 
 function writeLocalSavedEventIds(ids: string[]) {
-  getStorage()?.setItem(STORAGE_KEY, JSON.stringify(uniqueIds(ids)));
+  getStorage()?.setItem(STORAGE_KEY, JSON.stringify(normalizeSavedEventIds(ids)));
 }
 
 export function SavedEventsProvider({ children }: { children: ReactNode }) {

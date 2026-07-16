@@ -8,8 +8,10 @@ import { shadow } from '../../../src/theme/shadows';
 import { typography } from '../../../src/theme/typography';
 import { FALLBACK_EVENTS, listOrganizerEvents, type BackendEvent } from '../../../src/backend';
 import { groupEventsByCity, type CityGroup } from '../../../src/cities';
-import { ArrowLeftIcon, CalendarIcon, ChevronRightIcon, MapIcon, SparkIcon } from '../../../src/icons';
+import { ArrowLeftIcon, CalendarIcon, ChevronRightIcon, MapIcon } from '../../../src/icons';
 import { useAuth } from '../../../src/auth';
+import { LivedBackground } from '../../../src/ui/lived-in';
+import { Pictogram } from '../../../src/ui/pictograms';
 
 export default function OrganizerCities() {
   const { user, token } = useAuth();
@@ -23,7 +25,7 @@ export default function OrganizerCities() {
     const fallbackEvents = FALLBACK_EVENTS.filter((event) => event.organizerId === user.id);
     setEvents(fallbackEvents);
     listOrganizerEvents(token ?? undefined, user.id).then(setEvents);
-  }, [token, user?.id]);
+  }, [token, user]);
 
   const cityGroups = useMemo<CityGroup[]>(() => groupEventsByCity(events), [events]);
   const totalEvents = events.length;
@@ -33,6 +35,7 @@ export default function OrganizerCities() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
+      <LivedBackground />
       <ScrollView style={styles.container} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.topRow}>
           <Pressable
@@ -50,23 +53,20 @@ export default function OrganizerCities() {
             <ArrowLeftIcon size={16} color={organizerColors.text} />
           </Pressable>
           <View style={styles.topCopy}>
-            <Text style={styles.kicker}>City drill-down</Text>
-            <Text style={styles.title}>Cities that are actually moving tickets.</Text>
+            <Text style={styles.kicker}>Villes</Text>
+            <Text style={styles.title}>Où sont les billets ?</Text>
           </View>
         </View>
 
         <View style={styles.heroCard}>
           <View style={styles.heroPill}>
-            <SparkIcon size={12} color={colors.orange} />
-            <Text style={styles.heroPillText}>Live city view</Text>
+            <Pictogram pictogram="map" tone="yellow" size={52} />
+            <Text style={styles.heroPillText}>CARTE EN DIRECT</Text>
           </View>
-          <Text style={styles.heroCopy}>
-            Track where the organizer catalog is landing, which cities are carrying the most events, and where the next push should go.
-          </Text>
 
           <View style={styles.metricRow}>
             <Metric label="Villes" value={String(liveCities)} />
-            <Metric label="Events" value={String(totalEvents)} />
+            <Metric label="Sorties" value={String(totalEvents)} />
             <Metric label="Payants" value={String(totalPaidEvents)} />
           </View>
         </View>
@@ -77,8 +77,8 @@ export default function OrganizerCities() {
               <MapIcon size={16} color={colors.orange} />
             </View>
             <View style={styles.highlightCopy}>
-              <Text style={styles.highlightLabel}>Top city</Text>
-              <Text style={styles.highlightTitle}>{topCity?.label ?? 'No cities yet'}</Text>
+              <Text style={styles.highlightLabel}>Ville forte</Text>
+              <Text style={styles.highlightTitle}>{topCity?.label ?? 'Aucune ville'}</Text>
             </View>
           </View>
           <Text style={styles.highlightMeta}>
@@ -87,8 +87,7 @@ export default function OrganizerCities() {
         </View>
 
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>City ledger</Text>
-          <Text style={styles.sectionCaption}>Each row reflects one live destination in the organizer catalog.</Text>
+          <Text style={styles.sectionTitle}>Toutes les villes</Text>
         </View>
 
         <View style={styles.list}>

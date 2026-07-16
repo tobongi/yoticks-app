@@ -1,27 +1,31 @@
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors } from '../../src/theme/colors';
 import { organizerColors } from '../../src/theme/organizer';
 import { typography } from '../../src/theme/typography';
+import { LivedBackground, PrimaryAction } from '../../src/ui/lived-in';
+import { Pictogram } from '../../src/ui/pictograms';
+
+const supportEmail = process.env.EXPO_PUBLIC_SUPPORT_EMAIL || 'support@yoticks.app';
 
 export default function OrganizerSupport() {
   return (
     <SafeAreaView style={styles.safeArea}>
+      <LivedBackground />
       <ScrollView style={styles.container} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <Text style={styles.kicker}>Support</Text>
-        <Text style={styles.title}>Reach the organizer help line and issue flow.</Text>
-        <Text style={styles.copy}>
-          This page will be the organizer support hub with chat, escalation, and event-day contact details.
-        </Text>
+        <Text style={styles.kicker}>AIDE</Text>
+        <Text style={styles.title}>Un problème ?</Text>
+        <View style={styles.helpArt}><Pictogram pictogram="help" tone="blue" size={126} /></View>
 
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>Support line</Text>
-          <Text style={styles.cardValue}>Live line</Text>
+          <Text style={styles.cardTitle}>SUPPORT YOTICKS</Text>
+          <Text style={styles.cardValue}>{supportEmail}</Text>
+          <PrimaryAction label="Écrire au support" pictogram="talk" tone="blue" onPress={() => void Linking.openURL(`mailto:${supportEmail}?subject=Support%20organisateur%20YoTicks`)} />
         </View>
 
-        <Pressable style={styles.backButton} onPress={() => router.back()}>
-          <Text style={styles.backText}>Back to profile</Text>
+        <Pressable accessibilityRole="button" accessibilityLabel="Retour" style={styles.backButton} onPress={() => router.back()}>
+          <Text style={styles.backText}>Retour</Text>
         </Pressable>
       </ScrollView>
     </SafeAreaView>
@@ -41,6 +45,7 @@ const styles = StyleSheet.create({
   },
   title: { fontFamily: typography.fontFamily.bold, fontSize: 28, lineHeight: 34, color: organizerColors.text },
   copy: { fontFamily: typography.fontFamily.regular, fontSize: typography.fontSize.base, lineHeight: 22, color: organizerColors.textSecondary },
+  helpArt: { minHeight: 180, alignItems: 'center', justifyContent: 'center', borderRadius: 28, backgroundColor: organizerColors.surface, borderWidth: 1, borderColor: organizerColors.border },
   card: {
     padding: 16,
     borderRadius: 20,

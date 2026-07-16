@@ -1,15 +1,17 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { searchEvents, type BackendSearchResponse } from '../../src/backend';
 import { useAuth } from '../../src/auth';
 import { useLiveRefresh } from '../../src/live-refresh';
-import { FlameIcon, PinIcon, SearchIcon } from '../../src/icons';
+import { SearchIcon } from '../../src/icons';
 import { colors } from '../../src/theme/colors';
 import { typography } from '../../src/theme/typography';
 import { Chip, HeroPanel, InlineScroll, LivedBackground, ScreenHeader, SectionBlock, VisualCard } from '../../src/ui/lived-in';
 import { SavedEventButton } from '../../src/saved-event-button';
+import { Pictogram, VisualState } from '../../src/ui/pictograms';
+import { getCategoryVisual } from '../../src/ui/visual-language';
 
 const EMPTY_SEARCH: BackendSearchResponse = {
   query: '',
@@ -63,7 +65,7 @@ export default function SearchScreen() {
       <ScrollView style={styles.container} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <ScreenHeader eyebrow="Explorer" title="Trouver vite" />
 
-        <HeroPanel eyebrow="Recherche" title={query ? query : 'Nom, ville, style'} subtitle={`${data.results.length} resultats`} art={<SearchIcon size={34} color={colors.orange} />}>
+        <HeroPanel title={query || 'Que veux-tu voir ?'} subtitle={`${data.results.length} trouvé${data.results.length > 1 ? 's' : ''}`} art={<Pictogram pictogram="search" size={74} />}>
           <View style={styles.searchBar}>
             <SearchIcon size={18} color={colors.textMuted} />
             <TextInput
@@ -73,6 +75,7 @@ export default function SearchScreen() {
               placeholder="Chercher"
               placeholderTextColor={colors.textMuted}
               autoFocus
+              accessibilityLabel="Chercher un événement"
             />
           </View>
         </HeroPanel>
@@ -90,9 +93,10 @@ export default function SearchScreen() {
         {!!trends.length && (
           <SectionBlock eyebrow="Chaud" title="Tendances">
             <View style={styles.iconStack}>
-              {trends.map((item) => (
-                <Chip key={item.label} label={`${item.label} ${item.count}`} onPress={() => openSearch(item.label)} />
-              ))}
+              {trends.map((item) => {
+                const visual = getCategoryVisual(item.label);
+                return <Chip key={item.label} label={`${visual.label} ${item.count}`} pictogram={visual.key} tone={visual.tone} onPress={() => openSearch(item.label)} />;
+              })}
             </View>
           </SectionBlock>
         )}
@@ -101,7 +105,7 @@ export default function SearchScreen() {
           <SectionBlock eyebrow="Lieu" title="Villes">
             <InlineScroll>
               {cities.map((city) => (
-                <Chip key={city.label} label={`${city.label} ${city.count}`} onPress={() => openSearch(city.label)} />
+                <Chip key={city.label} label={`${city.label} ${city.count}`} pictogram="map" tone="yellow" onPress={() => openSearch(city.label)} />
               ))}
             </InlineScroll>
           </SectionBlock>
@@ -123,11 +127,7 @@ export default function SearchScreen() {
                 />
               ))
             ) : (
-              <View style={styles.emptyCard}>
-                <FlameIcon size={26} color={colors.orange} />
-                <Text style={styles.emptyTitle}>Rien ici</Text>
-                <Text style={styles.emptyCopy}>Essaie une ville, un style, ou un nom plus court.</Text>
-              </View>
+              <View style={styles.emptyCard}><VisualState art={<Pictogram pictogram="search" tone="blue" size={94} />} title="Rien ici" action={<Chip label="Tout voir" pictogram="celebrate" onPress={() => openSearch('')} />} /></View>
             )}
           </View>
         </SectionBlock>
@@ -162,7 +162,5 @@ const styles = StyleSheet.create({
   searchInput: { flex: 1, fontFamily: typography.fontFamily.medium, fontSize: typography.fontSize.base, color: colors.text },
   iconStack: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   stack: { gap: 12 },
-  emptyCard: { borderRadius: 24, padding: 18, borderWidth: 1, borderColor: colors.borderStrong, backgroundColor: colors.card, gap: 10, alignItems: 'flex-start' },
-  emptyTitle: { fontFamily: typography.fontFamily.bold, fontSize: typography.fontSize.lg, color: colors.text },
-  emptyCopy: { fontFamily: typography.fontFamily.medium, fontSize: typography.fontSize.sm, color: colors.textSecondary },
+  emptyCard: { borderRadius: 24, borderWidth: 1, borderColor: colors.borderStrong, backgroundColor: colors.card },
 });

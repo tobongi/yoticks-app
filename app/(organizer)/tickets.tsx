@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, View } from 'react-native';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { FALLBACK_TICKETS, listOrganizerTickets, type BackendTicket } from '../../src/backend';
 import { useAuth } from '../../src/auth';
-import { CalendarIcon, MapIcon, TicketIcon } from '../../src/icons';
+import { CalendarIcon, MapIcon } from '../../src/icons';
 import { colors } from '../../src/theme/colors';
 import { HeroPanel, LivedBackground, ScreenHeader, SectionBlock, StatRow, VisualCard } from '../../src/ui/lived-in';
+import { TicketStubArt } from '../../src/ui/pictograms';
 
 export default function OrganizerTickets() {
   const { user, token } = useAuth();
@@ -17,7 +18,7 @@ export default function OrganizerTickets() {
       return;
     }
     listOrganizerTickets(token ?? undefined, user.id).then(setTickets);
-  }, [token, user?.id]);
+  }, [token, user]);
 
   const ordered = useMemo(() => [...tickets].sort((a, b) => Number(a.status === 'valid') - Number(b.status === 'valid')), [tickets]);
   const valid = ordered.filter((item) => item.status === 'valid');
@@ -27,8 +28,8 @@ export default function OrganizerTickets() {
     <SafeAreaView style={styles.safeArea}>
       <LivedBackground />
       <ScrollView style={styles.container} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <ScreenHeader eyebrow="Organizer" title="Billets event" />
-        <HeroPanel eyebrow="Controle" title={`${ordered.length} billets`} subtitle="Ouverts en haut, passes dessous." art={<TicketIcon size={36} color={colors.orange} />}>
+        <ScreenHeader eyebrow="Organisateur" title="Billets" />
+        <HeroPanel eyebrow="Contrôle" title={`${ordered.length} billets`} subtitle="Prêts puis passés" art={<TicketStubArt tone="blue" size={92} />}>
           <StatRow items={[{ label: 'Ouverts', value: String(valid.length) }, { label: 'Passes', value: String(past.length) }, { label: 'Total', value: String(ordered.length) }]} />
         </HeroPanel>
 

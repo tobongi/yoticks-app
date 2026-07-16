@@ -5,7 +5,7 @@ import { corsMiddleware, globalLimiter, authLimiter } from './middleware/securit
 import { authRouter } from './routes/auth';
 import { eventsRouter } from './routes/events';
 import { organizerRouter } from './routes/organizer';
-import { paymentsRouter } from './routes/payments';
+import { handleMobileMoneyWebhook, handleMobileMoneyWebhookReadiness, paymentsRouter } from './routes/payments';
 import { savedRouter } from './routes/saved';
 import { providersRouter } from './routes/providers';
 import { venuesRouter } from './routes/venues';
@@ -25,8 +25,13 @@ app.use(
   }),
 );
 app.use(corsMiddleware);
+app.use('/api/payments/mobile-money/webhook', express.raw({ type: 'application/json' }));
+app.use('/api/mbiyopay/notify', express.raw({ type: 'application/json' }));
 app.use(express.json({ limit: '1mb' }));
 app.use('/api', globalLimiter);
+app.get('/api/payments/mobile-money/webhook', handleMobileMoneyWebhookReadiness);
+app.get('/api/mbiyopay/notify', handleMobileMoneyWebhookReadiness);
+app.post('/api/mbiyopay/notify', handleMobileMoneyWebhook);
 
 app.get('/api/health', (_req, res) => {
   res.json({ ok: true, app: 'YoTicks backend' });
@@ -34,6 +39,7 @@ app.get('/api/health', (_req, res) => {
 
 app.use('/api/auth/login', authLimiter);
 app.use('/api/auth/register', authLimiter);
+app.use('/api/auth/password-reset', authLimiter);
 app.use('/api/auth', authRouter);
 app.use('/api/events', eventsRouter);
 app.use('/api/organizer', organizerRouter);

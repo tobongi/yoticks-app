@@ -1,7 +1,9 @@
 import { Router } from 'express';
 import bcrypt from 'bcryptjs';
+import { createHash, randomBytes } from 'node:crypto';
 import { signToken, requireAuth, AuthRequest } from '../middleware/auth';
 import { store } from '../lib/store';
+import { deliverPasswordReset } from '../lib/password-reset-delivery';
 
 export const authRouter = Router();
 
@@ -134,32 +136,64 @@ authRouter.patch('/profile', requireAuth, async (req: AuthRequest, res) => {
   return res.json({ user: updated });
 });
 
-authRouter.post('/reset-password', async (req, res) => {
-  const { email, password } = req.body ?? {};
-  if (
-    typeof email !== 'string' ||
-    typeof password !== 'string' ||
-    !email.trim() ||
-    !password.trim()
-  ) {
-    return res.status(400).json({ error: 'Email et mot de passe requis' });
+authRouter.post('/password-reset/request', async (req, res) => {
+  const email = req.body?.email;
+  if (typeof email !== 'string' || !email.trim()) {
+    return res.status(400).json({ error: 'Email requis' });
   }
 
+  const user = await store.findUserByEmail(normalizeEmail(email));
+  let resetToken: string | undefined;
+  if (user?.email) {
+    resetToken = randomBytes(32).toString('hex');
+    const tokenHash = createHash('sha256').update(resetToken).digest('hex');
+    await store.createPasswordResetToken(user.id, tokenHash, new Date(Date.now() + 30 * 60 * 1000));
+    await deliverPasswordReset({ email: user.email, name: user.name, token: resetToken });
+  }
+
+  return res.status(202).json({
+    ok: true,
+    ...(process.env.NODE_ENV === 'test' && resetToken ? { resetToken } : {}),
+  });
+});
+
+authRouter.post('/password-reset/confirm', async (req, res) => {
+  const { token, password } = req.body ?? {};
+  if (typeof token !== 'string' || !token.trim() || typeof password !== 'string' || !password) {
+    return res.status(400).json({ error: 'Lien et mot de passe requis' });
+  }
   if (password.length < MIN_PASSWORD_LENGTH) {
     return res.status(400).json({ error: `Mot de passe trop court (min. ${MIN_PASSWORD_LENGTH} caractères)` });
   }
 
-  const normalizedEmail = normalizeEmail(email);
-  const user = await store.findUserByEmail(normalizedEmail);
-  if (!user) {
-    return res.status(404).json({ error: 'Aucun compte trouvé pour cet email' });
+  const tokenHash = createHash('sha256').update(token.trim()).digest('hex');
+  const changed = await store.consumePasswordResetToken(tokenHash, await bcrypt.hash(password, 10));
+  if (!changed) {
+    return res.status(400).json({ error: 'Lien de réinitialisation invalide ou expiré' });
   }
-
-  await store.updateUserPassword(user.id, await bcrypt.hash(password, 10));
   return res.json({ ok: true });
 });
 
+authRouter.delete('/account', requireAuth, async (req: AuthRequest, res) => {
+  const password = req.body?.password;
+  if (typeof password !== 'string' || !password) {
+    return res.status(400).json({ error: 'Mot de passe requis' });
+  }
+
+  const user = await store.findUserById(req.userId!);
+  const matches = await bcrypt.compare(password, user?.passwordHash ?? DUMMY_HASH);
+  if (!user?.passwordHash || !matches) {
+    return res.status(403).json({ error: 'Mot de passe incorrect' });
+  }
+
+  await store.deleteUser(user.id);
+  return res.status(204).send();
+});
+
 authRouter.post('/dev-login', async (req, res) => {
+  if (process.env.NODE_ENV === 'production') {
+    return res.status(404).json({ error: 'Route introuvable' });
+  }
   const role = req.body?.role === 'organizer' ? 'organizer' : 'attendee';
   const requestedEmail = typeof req.body?.email === 'string' ? normalizeEmail(req.body.email) : null;
   const fallbackEmail = role === 'organizer' ? 'organizer@yoticks.dev' : 'jean.dupont@example.com';

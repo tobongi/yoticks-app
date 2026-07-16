@@ -18,6 +18,7 @@ model User {
   createdAt    DateTime @default(now())
   organizerEvents   Event[]            @relation("OrganizerEvents")
   tickets           Ticket[]
+  ticketScans       TicketScan[] @relation("TicketScanner")
   savedEvents       SavedEvent[]
   merchantAccounts  MerchantAccount[]
   checkoutSessions CheckoutSession[]
@@ -27,6 +28,20 @@ model User {
   followedCategories FollowedCategory[]
   eventInteractions EventInteraction[]
   waitlistEntries   WaitlistEntry[]
+  passwordResetTokens PasswordResetToken[]
+}
+
+model PasswordResetToken {
+  id        String   @id @default(cuid())
+  userId    String
+  tokenHash String   @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
 }
 
 model Venue {
@@ -94,9 +109,27 @@ model Ticket {
 
   user   User  @relation(fields: [userId], references: [id], onDelete: Cascade)
   event  Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  scans  TicketScan[]
 
   @@index([userId])
   @@index([eventId])
+}
+
+model TicketScan {
+  id          String   @id @default(cuid())
+  ticketId    String
+  scannerId   String
+  scannerName String
+  scannerRole String
+  gate        String
+  source      String   @default("qr")
+  outcome     String
+  scannedAt   DateTime @default(now())
+  ticket      Ticket   @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  scanner     User     @relation("TicketScanner", fields: [scannerId], references: [id], onDelete: Restrict)
+
+  @@index([ticketId, scannedAt])
+  @@index([scannerId, scannedAt])
 }
 
 model EventGalleryImage {
@@ -259,6 +292,7 @@ model CheckoutSession {
   tier           String
   paymentMethod  String
   amount         Int
+  quantity       Int      @default(1)
   status         String
   createdAt      DateTime @default(now())
   user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -267,6 +301,35 @@ model CheckoutSession {
   @@index([userId])
   @@index([eventId])
   @@index([organizerId])
+}
+
+model MobileMoneyTransaction {
+  id                    String   @id
+  checkoutSessionId     String
+  userId                String
+  providerTransactionId String?  @unique
+  status                String   @default("pending")
+  network               String
+  phoneNumber           String
+  countryCode           String
+  currency              String
+  amount                Int
+  providerFee           Float?
+  chargedAmount         Float?
+  providerStatus        String?
+  instructions          String?
+  authMode              String?
+  redirectUrl           String?
+  rawResponse           String?
+  reconciliationCheckedAt DateTime?
+  reservationStartedAt  DateTime?
+  reservationIssuedAt   DateTime?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  @@index([checkoutSessionId])
+  @@index([userId])
+  @@index([status])
 }
 
 model SavedEvent {

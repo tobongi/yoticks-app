@@ -5,7 +5,7 @@ import { colors } from '../../src/theme/colors';
 import { organizerColors } from '../../src/theme/organizer';
 import { shadow } from '../../src/theme/shadows';
 import { typography } from '../../src/theme/typography';
-import { BellIcon, ClipboardIcon, QrIcon, SparkIcon, UserIcon } from '../../src/icons';
+import { ClipboardIcon, QrIcon, SparkIcon, UserIcon } from '../../src/icons';
 import { useAuth } from '../../src/auth';
 
 export default function OrganizerLayout() {
@@ -57,7 +57,7 @@ export default function OrganizerLayout() {
       />
       <Tabs.Screen
         name="events"
-        options={{ title: 'Events', tabBarIcon: ({ color }) => <ClipboardIcon size={22} color={color as string} /> }}
+        options={{ title: 'Sorties', tabBarIcon: ({ color }) => <ClipboardIcon size={22} color={color as string} /> }}
       />
       <Tabs.Screen
         name="scan"

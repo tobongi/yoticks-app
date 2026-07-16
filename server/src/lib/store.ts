@@ -13,6 +13,8 @@ import {
 } from '../seed';
 import type { Event, MerchantAccount, PaymentMethodKey, Ticket, User, ProviderUser, CheckoutSession } from '../data';
 import { seedDatabase as refreshSeedDatabase } from './seed-database';
+import type { MbiYoTransaction } from './mbiyopay';
+import { findProviderTransaction, normalizeProviderStatus, preservePaymentStatus, providerAmountMatches, type PaymentStatus } from './payment-state';
 
 type VenueRecord = SeedVenue;
 
@@ -47,6 +49,26 @@ export type PublicCheckoutSession = CheckoutSession & {
   event: Event;
   merchantAccount: PublicMerchantAccount;
   providerName: string;
+};
+
+export type PublicMobileMoneyTransaction = {
+  id: string;
+  checkoutSessionId: string;
+  status: 'pending' | 'successful' | 'failed' | 'cancelled';
+  providerTransactionId: string | null;
+  instructions: string | null;
+  authMode: 'confirm' | 'pin' | null;
+  redirectUrl: string | null;
+  amount: number;
+  providerFee: number | null;
+  chargedAmount: number | null;
+  providerStatus: string | null;
+  network: string;
+  countryCode: string;
+  currency: string;
+  createdAt: string;
+  reconciliationCheckedAt: string | null;
+  reservationIssuedAt: string | null;
 };
 
 export type OrganizerScanStats = {
@@ -227,6 +249,18 @@ export type UpdateOrganizerTicketInput = {
 export type OrganizerTicketScanResult = {
   outcome: 'checked_in' | 'already_used' | 'cancelled' | 'not_found';
   ticket: PublicTicket | null;
+  scan?: OrganizerTicketScanAudit;
+};
+
+export type OrganizerTicketScanAudit = {
+  id: string;
+  scannedAt: string;
+  gate: string;
+  scannerId: string;
+  scannerName: string;
+  scannerRole: string;
+  source: 'qr' | 'manual';
+  outcome: OrganizerTicketScanResult['outcome'];
 };
 
 export type ProviderDirectoryResponse = {
@@ -254,6 +288,7 @@ const PROVIDER_NAMES: Record<PaymentMethodKey, string> = {
   google_pay: 'Google Pay',
   paypal: 'PayPal',
   card: 'Carte bancaire',
+  mbiyopay_mobile_money: 'Mobile money',
 };
 const MERCHANT_FIELD_DEFS: Array<Omit<MerchantField, 'value'>> = [
   { key: 'businessName', label: 'Nom du commerce', placeholder: 'Dakar Nights SARL' },
@@ -387,6 +422,28 @@ function extractTicketCode(value: string) {
 
   const qrMatch = trimmed.match(/yoticks-ticket:([^|]+)/i);
   return (qrMatch?.[1] ?? trimmed).trim();
+}
+
+function publicTicketScan(scan: {
+  id: string;
+  scannedAt: Date;
+  gate: string;
+  scannerId: string;
+  scannerName: string;
+  scannerRole: string;
+  source: string;
+  outcome: string;
+}): OrganizerTicketScanAudit {
+  return {
+    id: scan.id,
+    scannedAt: scan.scannedAt.toISOString(),
+    gate: scan.gate,
+    scannerId: scan.scannerId,
+    scannerName: scan.scannerName,
+    scannerRole: scan.scannerRole,
+    source: scan.source === 'manual' ? 'manual' : 'qr',
+    outcome: scan.outcome as OrganizerTicketScanResult['outcome'],
+  };
 }
 
 function publicUser(user: User): PublicUser {
@@ -562,6 +619,7 @@ function makePublicCheckoutSession(session: {
   tier: string;
   paymentMethod: PaymentMethodKey;
   amount: number;
+  quantity: number;
   status: string;
   createdAt: Date;
   event: ReturnType<typeof makePublicEvent>;
@@ -587,6 +645,7 @@ function makePublicCheckoutSession(session: {
     tier: session.tier,
     paymentMethod: session.paymentMethod,
     amount: session.amount,
+    quantity: session.quantity,
     amountLabel: session.amount === 0 ? 'Aucun paiement' : `A payer : ${formatMoney(session.amount)}`,
     status: session.status as CheckoutSession['status'],
     createdAt: session.createdAt.toISOString(),
@@ -594,6 +653,46 @@ function makePublicCheckoutSession(session: {
     merchantAccount,
     providerName: PROVIDER_NAMES[session.paymentMethod],
   } satisfies PublicCheckoutSession;
+}
+
+function makePublicMobileMoneyTransaction(transaction: {
+  id: string;
+  checkoutSessionId: string;
+  status: string;
+  providerTransactionId: string | null;
+  instructions: string | null;
+  authMode: string | null;
+  redirectUrl: string | null;
+  amount: number;
+  providerFee: number | null;
+  chargedAmount: number | null;
+  providerStatus: string | null;
+  network: string;
+  countryCode: string;
+  currency: string;
+  createdAt: Date;
+  reconciliationCheckedAt: Date | null;
+  reservationIssuedAt: Date | null;
+}): PublicMobileMoneyTransaction {
+  return {
+    id: transaction.id,
+    checkoutSessionId: transaction.checkoutSessionId,
+    status: transaction.status as PublicMobileMoneyTransaction['status'],
+    providerTransactionId: transaction.providerTransactionId,
+    instructions: transaction.instructions,
+    authMode: transaction.authMode as PublicMobileMoneyTransaction['authMode'],
+    redirectUrl: transaction.redirectUrl,
+    amount: transaction.amount,
+    providerFee: transaction.providerFee,
+    chargedAmount: transaction.chargedAmount,
+    providerStatus: transaction.providerStatus,
+    network: transaction.network,
+    countryCode: transaction.countryCode,
+    currency: transaction.currency,
+    createdAt: transaction.createdAt.toISOString(),
+    reconciliationCheckedAt: transaction.reconciliationCheckedAt?.toISOString() ?? null,
+    reservationIssuedAt: transaction.reservationIssuedAt?.toISOString() ?? null,
+  };
 }
 
 function uniqueById<T extends { id: string }>(items: T[]) {
@@ -1201,6 +1300,31 @@ export class DataStore {
     return true;
   }
 
+  async createPasswordResetToken(userId: string, tokenHash: string, expiresAt: Date): Promise<void> {
+    await this.prisma.$transaction(async (tx) => {
+      await tx.passwordResetToken.deleteMany({ where: { userId } });
+      await tx.passwordResetToken.create({ data: { userId, tokenHash, expiresAt } });
+    });
+  }
+
+  async consumePasswordResetToken(tokenHash: string, passwordHash: string): Promise<boolean> {
+    return this.prisma.$transaction(async (tx) => {
+      const resetToken = await tx.passwordResetToken.findFirst({
+        where: { tokenHash, usedAt: null, expiresAt: { gt: new Date() } },
+      });
+      if (!resetToken) return false;
+
+      await tx.user.update({ where: { id: resetToken.userId }, data: { passwordHash } });
+      await tx.passwordResetToken.update({ where: { id: resetToken.id }, data: { usedAt: new Date() } });
+      return true;
+    });
+  }
+
+  async deleteUser(userId: string): Promise<boolean> {
+    const result = await this.prisma.user.deleteMany({ where: { id: userId } });
+    return result.count === 1;
+  }
+
   async createNotification(input: {
     userId: string;
     type: string;
@@ -1658,6 +1782,7 @@ export class DataStore {
     organizerId: string,
     rawCode: string,
     gate?: string,
+    source: 'qr' | 'manual' = 'qr',
   ): Promise<OrganizerTicketScanResult> {
     const code = extractTicketCode(rawCode);
     if (!code) {
@@ -1684,6 +1809,11 @@ export class DataStore {
       return { outcome: 'not_found', ticket: null };
     }
 
+    const scanner = await this.prisma.user.findUnique({ where: { id: organizerId } });
+    if (!scanner) {
+      return { outcome: 'not_found', ticket: null };
+    }
+
     const publicTicket = makePublicTicket({
       id: ticket.id,
       userId: ticket.userId,
@@ -1699,11 +1829,38 @@ export class DataStore {
     });
 
     if (ticket.status === 'cancelled') {
-      return { outcome: 'cancelled', ticket: publicTicket };
+      const scan = await this.prisma.ticketScan.create({
+        data: {
+          ticketId: ticket.id,
+          scannerId: scanner.id,
+          scannerName: scanner.name,
+          scannerRole: scanner.role,
+          gate: gate?.trim() || ticket.gate || 'Main Gate',
+          source,
+          outcome: 'cancelled',
+        },
+      });
+      return { outcome: 'cancelled', ticket: publicTicket, scan: publicTicketScan(scan) };
     }
 
     if (ticket.status === 'used') {
-      return { outcome: 'already_used', ticket: publicTicket };
+      const scan =
+        (await this.prisma.ticketScan.findFirst({
+          where: { ticketId: ticket.id, outcome: 'checked_in' },
+          orderBy: { scannedAt: 'asc' },
+        })) ??
+        (await this.prisma.ticketScan.create({
+          data: {
+            ticketId: ticket.id,
+            scannerId: scanner.id,
+            scannerName: scanner.name,
+            scannerRole: scanner.role,
+            gate: ticket.gate || gate?.trim() || 'Main Gate',
+            source,
+            outcome: 'already_used',
+          },
+        }));
+      return { outcome: 'already_used', ticket: publicTicket, scan: publicTicketScan(scan) };
     }
 
     const updated = await this.updateOrganizerTicket(ticket.id, organizerId, {
@@ -1711,9 +1868,22 @@ export class DataStore {
       gate: gate?.trim() || ticket.gate || 'Main Gate',
     });
 
+    const scan = await this.prisma.ticketScan.create({
+      data: {
+        ticketId: ticket.id,
+        scannerId: scanner.id,
+        scannerName: scanner.name,
+        scannerRole: scanner.role,
+        gate: gate?.trim() || ticket.gate || 'Main Gate',
+        source,
+        outcome: 'checked_in',
+      },
+    });
+
     return {
       outcome: 'checked_in',
       ticket: updated,
+      scan: publicTicketScan(scan),
     };
   }
 
@@ -1966,7 +2136,8 @@ export class DataStore {
         tier,
         paymentMethod,
         amount,
-        status: amount > 0 && (!merchantAccount || merchantAccount.status !== 'ready')
+        quantity: quote.quantity,
+      status: amount > 0 && paymentMethod !== 'mbiyopay_mobile_money' && (!merchantAccount || merchantAccount.status !== 'ready')
           ? 'requires_merchant_setup'
           : 'ready_for_payment',
       },
@@ -1983,6 +2154,7 @@ export class DataStore {
       tier: session.tier,
       paymentMethod: session.paymentMethod as PaymentMethodKey,
       amount: session.amount,
+      quantity: session.quantity,
       status: session.status,
       createdAt: session.createdAt,
       event: makePublicEvent(session.event),
@@ -2019,11 +2191,159 @@ export class DataStore {
       tier: session.tier,
       paymentMethod: session.paymentMethod as PaymentMethodKey,
       amount: session.amount,
+      quantity: session.quantity,
       status: session.status,
       createdAt: session.createdAt,
       event: makePublicEvent(session.event),
       merchantAccount: merchantAccount ?? undefined,
     });
+  }
+
+  async createMobileMoneyTransaction(input: {
+    checkoutSessionId: string;
+    userId: string;
+    providerTransactionId?: string | null;
+    status?: string;
+    network: string;
+    phoneNumber: string;
+    countryCode: string;
+    currency: string;
+    amount: number;
+    providerFee?: number | null;
+    chargedAmount?: number | null;
+    providerStatus?: string | null;
+    instructions?: string | null;
+    authMode?: string | null;
+    redirectUrl?: string | null;
+    rawResponse?: string;
+  }): Promise<PublicMobileMoneyTransaction> {
+    const transaction = await this.prisma.mobileMoneyTransaction.create({
+      data: {
+        id: `mobile_money_${randomUUID()}`,
+        checkoutSessionId: input.checkoutSessionId,
+        userId: input.userId,
+        providerTransactionId: input.providerTransactionId ?? null,
+        status: input.status ?? 'pending',
+        network: input.network,
+        phoneNumber: input.phoneNumber,
+        countryCode: input.countryCode,
+        currency: input.currency,
+        amount: input.amount,
+        providerFee: input.providerFee ?? null,
+        chargedAmount: input.chargedAmount ?? null,
+        providerStatus: input.providerStatus ?? input.status ?? 'pending',
+        instructions: input.instructions ?? null,
+        authMode: input.authMode ?? null,
+        redirectUrl: input.redirectUrl ?? null,
+        rawResponse: input.rawResponse,
+      },
+    });
+    return makePublicMobileMoneyTransaction(transaction);
+  }
+
+  async getMobileMoneyTransaction(id: string, userId: string): Promise<PublicMobileMoneyTransaction | null> {
+    const transaction = await this.prisma.mobileMoneyTransaction.findFirst({ where: { id, userId } });
+    return transaction ? makePublicMobileMoneyTransaction(transaction) : null;
+  }
+
+  async getLatestMobileMoneyTransactionForCheckout(checkoutSessionId: string, userId: string): Promise<PublicMobileMoneyTransaction | null> {
+    const transaction = await this.prisma.mobileMoneyTransaction.findFirst({
+      where: { checkoutSessionId, userId },
+      orderBy: { createdAt: 'desc' },
+    });
+    return transaction ? makePublicMobileMoneyTransaction(transaction) : null;
+  }
+
+  async reconcileMobileMoneyTransactions(providerTransactions: MbiYoTransaction[]): Promise<{ matched: number; applied: number }> {
+    const localTransactions = await this.prisma.mobileMoneyTransaction.findMany({ where: { status: 'pending' } });
+    let matched = 0;
+    let applied = 0;
+
+    for (const localTransaction of localTransactions) {
+      const providerTransaction = findProviderTransaction(
+        providerTransactions,
+        localTransaction.providerTransactionId,
+        localTransaction.checkoutSessionId,
+      );
+      if (!providerTransaction) continue;
+      matched += 1;
+      const providerId = providerTransaction.transaction_id ?? providerTransaction.id;
+      const didApply = await this.applyMobileMoneyWebhook({
+        checkoutSessionId: localTransaction.checkoutSessionId,
+        providerTransactionId: providerId,
+        status: providerTransaction.status ?? 'pending',
+        providerAmount: providerTransaction.amount,
+        providerCurrency: providerTransaction.currency,
+        rawResponse: JSON.stringify(providerTransaction),
+      });
+      await this.prisma.mobileMoneyTransaction.update({
+        where: { id: localTransaction.id },
+        data: { reconciliationCheckedAt: new Date() },
+      });
+      if (didApply) applied += 1;
+    }
+
+    return { matched, applied };
+  }
+
+  async applyMobileMoneyWebhook(input: {
+    checkoutSessionId?: string;
+    providerTransactionId?: string;
+    status: string;
+    providerAmount?: number | string | null;
+    providerCurrency?: string | null;
+    providerFee?: number | string | null;
+    chargedAmount?: number | string | null;
+    instructions?: string | null;
+    authMode?: string | null;
+    redirectUrl?: string | null;
+    rawResponse: string;
+  }): Promise<boolean> {
+    const transaction = input.providerTransactionId
+      ? await this.prisma.mobileMoneyTransaction.findUnique({ where: { providerTransactionId: input.providerTransactionId } })
+      : input.checkoutSessionId
+        ? await this.prisma.mobileMoneyTransaction.findFirst({ where: { checkoutSessionId: input.checkoutSessionId } })
+        : null;
+    if (!transaction) return false;
+
+    const session = await this.prisma.checkoutSession.findUnique({ where: { id: transaction.checkoutSessionId } });
+    if (!session) return false;
+    if (input.checkoutSessionId && input.checkoutSessionId !== session.id) return false;
+    if (input.providerAmount !== undefined && !providerAmountMatches(transaction.amount, input.providerAmount)) return false;
+    if (input.providerCurrency && input.providerCurrency.trim().toUpperCase() !== transaction.currency.toUpperCase()) return false;
+
+    const nextStatus = preservePaymentStatus(transaction.status as PaymentStatus, normalizeProviderStatus(input.status));
+    if (transaction.status === 'successful' && nextStatus === 'successful' && transaction.reservationIssuedAt) return true;
+    if (nextStatus === 'successful') {
+      const claim = await this.prisma.mobileMoneyTransaction.updateMany({
+        where: { id: transaction.id, reservationStartedAt: null },
+        data: { reservationStartedAt: new Date(), providerStatus: input.status },
+      });
+      if (claim.count === 0) return true;
+      const reservation = await this.reserveTickets(transaction.userId, session.eventId, session.tier, session.quantity);
+      if (!reservation || reservation.status !== 'confirmed') {
+        await this.prisma.mobileMoneyTransaction.update({ where: { id: transaction.id }, data: { reservationStartedAt: null } });
+        return false;
+      }
+    }
+
+    await this.prisma.mobileMoneyTransaction.update({
+      where: { id: transaction.id },
+      data: {
+        status: nextStatus,
+        providerStatus: input.status,
+        providerFee: input.providerFee === undefined ? transaction.providerFee : Number(input.providerFee),
+        chargedAmount: input.chargedAmount === undefined ? transaction.chargedAmount : Number(input.chargedAmount),
+        instructions: input.instructions ?? transaction.instructions,
+        authMode: input.authMode ?? transaction.authMode,
+        redirectUrl: input.redirectUrl ?? transaction.redirectUrl,
+        providerTransactionId: input.providerTransactionId ?? transaction.providerTransactionId,
+        rawResponse: input.rawResponse,
+        reservationIssuedAt: nextStatus === 'successful' ? new Date() : transaction.reservationIssuedAt,
+        reconciliationCheckedAt: new Date(),
+      },
+    });
+    return true;
   }
 
   async reserveTickets(

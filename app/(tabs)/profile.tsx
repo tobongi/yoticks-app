@@ -7,11 +7,11 @@ import { useAuth } from '../../src/auth';
 import { useI18n } from '../../src/i18n';
 import { useLiveRefresh } from '../../src/live-refresh';
 import { useSavedEvents } from '../../src/saved-events';
-import { BellIcon, GlobeIcon, TentIcon, TicketIcon, UserIcon } from '../../src/icons';
 import { colors } from '../../src/theme/colors';
 import { typography } from '../../src/theme/typography';
 import { ActionTile, Chip, HeroPanel, LivedBackground, ScreenHeader, SectionBlock, StatRow, VisualCard } from '../../src/ui/lived-in';
 import { usePhoneLayout } from '../../src/ui/responsive';
+import { Pictogram, VisualState } from '../../src/ui/pictograms';
 
 const FALLBACK_SUMMARY: BackendProfileSummary = {
   user: { id: 'demo', email: 'jean.dupont@example.com', name: 'Jean Dupont', role: 'attendee', avatarUrl: null, totalSpend: 0 },
@@ -70,16 +70,16 @@ export default function ProfileScreen() {
         </HeroPanel>
 
         <View style={styles.tileGrid}>
-          <ActionTile icon={<TicketIcon size={20} color={colors.orange} />} label="Mes QR" hint="Ouvrir" style={{ width: layout.tileWidth }} onPress={() => router.push('/(tabs)/tickets')} />
-          <ActionTile icon={<BellIcon size={20} color={colors.green} />} label="Alertes" hint="Inbox" tone="green" style={{ width: layout.tileWidth }} onPress={() => router.push('/notifications')} />
-          <ActionTile icon={<TentIcon size={20} color={colors.black} />} label="Mode orga" hint="Tableau" tone="yellow" style={{ width: layout.tileWidth }} onPress={() => router.push('/(organizer)' as never)} />
-          <ActionTile icon={<UserIcon size={20} color={colors.orange} />} label="Quitter" hint="Sortie" style={{ width: layout.tileWidth }} onPress={() => { signOut(); router.replace('/auth/login'); }} />
+          <ActionTile icon={<Pictogram pictogram="ticket" tone="blue" size={46} />} label="Mes QR" tone="blue" style={{ width: layout.tileWidth }} onPress={() => router.push('/(tabs)/tickets')} />
+          <ActionTile icon={<Pictogram pictogram="bell" tone="orange" size={46} />} label="Alertes" style={{ width: layout.tileWidth }} onPress={() => router.push('/notifications')} />
+          <ActionTile icon={<Pictogram pictogram="profile" tone="yellow" size={46} />} label="Réglages" tone="yellow" style={{ width: layout.tileWidth }} onPress={() => router.push('/settings' as never)} />
+          <ActionTile icon={<Pictogram pictogram="help" tone="blue" size={46} />} label="Aide" tone="blue" style={{ width: layout.tileWidth }} onPress={() => Alert.alert('Aide', 'Appuie sur une image pour continuer.')} />
         </View>
 
         <SectionBlock eyebrow="Langue" title="Parler simple">
           <View style={styles.chipWrap}>
-            <Chip label="Francais" active={locale === 'fr'} onPress={() => setLocale('fr')} />
-            <Chip label="English" active={locale === 'en'} onPress={() => setLocale('en')} />
+            <Chip label="Français" pictogram="talk" tone="blue" active={locale === 'fr'} onPress={() => setLocale('fr')} />
+            <Chip label="English" pictogram="talk" tone="green" active={locale === 'en'} onPress={() => setLocale('en')} />
           </View>
         </SectionBlock>
 
@@ -96,7 +96,7 @@ export default function ProfileScreen() {
                   badge={entry.event.price}
                   onPress={() => router.push({ pathname: '/event/[id]', params: { id: entry.event.id } })}
                   right={
-                    <Pressable
+                    <Pressable accessibilityRole="button" accessibilityLabel={`Retirer ${entry.event.title} des favoris`}
                       style={styles.removeButton}
                       onPress={async () => {
                         const stillSaved = await toggleSavedEvent(entry.event.id);
@@ -111,19 +111,10 @@ export default function ProfileScreen() {
                 />
               ))
             ) : (
-              <View style={styles.emptyCard}>
-                <GlobeIcon size={24} color={colors.orange} />
-                <Text style={styles.emptyTitle}>Rien garde</Text>
-                <Text style={styles.emptyCopy}>Sauve un event pour le revoir ici.</Text>
-              </View>
+              <View style={styles.emptyCard}><VisualState art={<Pictogram pictogram="celebrate" size={96} />} title="Aucun favori" /></View>
             )}
           </View>
         </SectionBlock>
-
-        <Pressable style={styles.helpCard} onPress={() => Alert.alert('Aide', 'Utilise les gros boutons pour aller plus vite.')}>
-          <Text style={styles.helpTitle}>Aide rapide</Text>
-          <Text style={styles.helpCopy}>Billets, recherche, profil, orga.</Text>
-        </Pressable>
 
         <Pressable
           accessibilityRole="button"
@@ -152,12 +143,7 @@ const styles = StyleSheet.create({
   stack: { gap: 12 },
   removeButton: { paddingHorizontal: 8, paddingVertical: 6 },
   removeText: { fontFamily: typography.fontFamily.semiBold, fontSize: typography.fontSize.sm, color: colors.red },
-  emptyCard: { borderRadius: 24, padding: 18, borderWidth: 1, borderColor: colors.borderStrong, backgroundColor: colors.card, gap: 8 },
-  emptyTitle: { fontFamily: typography.fontFamily.bold, fontSize: typography.fontSize.lg, color: colors.text },
-  emptyCopy: { fontFamily: typography.fontFamily.medium, fontSize: typography.fontSize.sm, color: colors.textSecondary },
-  helpCard: { borderRadius: 24, padding: 18, backgroundColor: colors.black, gap: 8 },
-  helpTitle: { fontFamily: typography.fontFamily.bold, fontSize: typography.fontSize.lg, color: colors.ivory },
-  helpCopy: { fontFamily: typography.fontFamily.medium, fontSize: typography.fontSize.base, color: colors.beige },
+  emptyCard: { borderRadius: 24, borderWidth: 1, borderColor: colors.borderStrong, backgroundColor: colors.card },
   signOutButton: {
     minHeight: 52,
     borderRadius: 18,

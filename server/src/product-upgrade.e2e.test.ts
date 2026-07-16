@@ -213,10 +213,11 @@ test('dynamic inventory, publishing, analytics, discovery, and notifications wor
         quantity: 2,
       }),
     });
-    assert.equal(reserveStandard.response.status, 201);
-    assert.equal(reserveStandard.json.reservation.status, 'confirmed');
-    assert.equal(reserveStandard.json.reservation.tickets.length, 2);
-    assert.equal(reserveStandard.json.reservation.tickets.every((ticket) => ticket.tierKey === 'standard'), true);
+    assert.equal(reserveStandard.response.status, 402);
+    const confirmedStandard = await currentStore.reserveTickets('user_demo', createdEvent.json.event.id, 'standard', 2);
+    assert.equal(confirmedStandard?.status, 'confirmed');
+    assert.equal(confirmedStandard?.tickets.length, 2);
+    assert.equal(confirmedStandard?.tickets.every((ticket) => ticket.tierKey === 'standard'), true);
 
     const soldOutStandard = await requestJson<{
       reservation: {
@@ -333,7 +334,7 @@ test('dynamic inventory, publishing, analytics, discovery, and notifications wor
 
     const gateUpdate = await requestJson<{ ticket: { id: string; gate: string | null } }>(
       baseUrl,
-      `/organizer/tickets/${reserveStandard.json.reservation.tickets[0]!.id}`,
+      `/organizer/tickets/${confirmedStandard!.tickets[0]!.id}`,
       {
         method: 'PATCH',
         headers: {

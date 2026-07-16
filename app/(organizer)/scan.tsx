@@ -6,7 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors } from '../../src/theme/colors';
 import { organizerColors } from '../../src/theme/organizer';
 import { typography } from '../../src/theme/typography';
-import { ClipboardIcon, CloseIcon, QrIcon, SparkIcon, TicketIcon, UserIcon } from '../../src/icons';
+import { ClipboardIcon, CloseIcon, SparkIcon, TicketIcon, UserIcon } from '../../src/icons';
 import { useAuth } from '../../src/auth';
 import {
   FALLBACK_TICKETS,
@@ -16,9 +16,14 @@ import {
   type BackendOrganizerTicketScanResult,
 } from '../../src/backend';
 import { buildAttendanceTierCards } from '../../src/organizer/scan-attendance';
+import { shouldUseFallbackScanStats } from '../../src/organizer/scan-stats';
+import { buildScanValidationDetails, type ScanValidationDetails } from '../../src/organizer/scan-validation';
 import { useLiveRefresh } from '../../src/live-refresh';
+import { Pictogram, StatusSeal } from '../../src/ui/pictograms';
+import { SpeakButton } from '../../src/ui/speak-button';
+import { getScanOutcomeVisual } from '../../src/ui/visual-language';
 
-const GATE_OPTIONS = ['Main Gate', 'North Gate', 'South Gate', 'West Entry', 'VIP Entry'];
+const GATE_OPTIONS = ['Entrée principale', 'Entrée nord', 'Entrée sud', 'Entrée ouest', 'Entrée VIP'];
 
 export default function OrganizerScan() {
   const { user, token } = useAuth();
@@ -37,7 +42,7 @@ export default function OrganizerScan() {
   const [manualCode, setManualCode] = useState('');
   const [gate, setGate] = useState(GATE_OPTIONS[0]);
   const [lastResult, setLastResult] = useState<BackendOrganizerTicketScanResult | null>(null);
-  const [feedback, setFeedback] = useState('Pret');
+  const [feedback, setFeedback] = useState('Prêt');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const refreshTick = useLiveRefresh(2200);
 
@@ -46,11 +51,12 @@ export default function OrganizerScan() {
       return;
     }
 
+    let disposed = false;
     const fallbackTickets = FALLBACK_TICKETS.filter((ticket) => ticket.event.organizerId === user.id);
     const fallbackQueued = fallbackTickets.length;
     const validTickets = fallbackTickets.filter((ticket) => ticket.status === 'valid').length;
     const usedTickets = fallbackTickets.filter((ticket) => ticket.status === 'used').length;
-    setStats({
+    const fallbackStats: BackendOrganizerScanStats = {
       pending: validTickets,
       queued: fallbackQueued,
       scans: fallbackTickets.length > 0 ? Math.round((usedTickets / fallbackTickets.length) * 100) : 0,
@@ -67,9 +73,22 @@ export default function OrganizerScan() {
           cancelledTickets: fallbackTickets.filter((ticket) => ticket.status === 'cancelled').length,
         },
       ],
+    };
+
+    if (shouldUseFallbackScanStats(token ?? undefined)) {
+      setStats(fallbackStats);
+    }
+
+    void getOrganizerScanStats(token ?? undefined, user.id).then((nextStats) => {
+      if (!disposed) {
+        setStats(nextStats);
+      }
     });
-    getOrganizerScanStats(token ?? undefined, user.id).then(setStats);
-  }, [refreshTick, token, user?.id]);
+
+    return () => {
+      disposed = true;
+    };
+  }, [refreshTick, token, user]);
 
   const attendanceCards = buildAttendanceTierCards(stats);
   const cancelledTickets = Math.max(stats.totalTickets - stats.usedTickets - stats.validTickets, 0);
@@ -79,7 +98,7 @@ export default function OrganizerScan() {
         key: 'inside',
         icon: <UserIcon size={18} color={organizerColors.success} />,
         value: String(stats.usedTickets),
-        label: 'Entres',
+        label: 'Entrés',
         tone: 'success' as const,
       },
       {
@@ -93,21 +112,21 @@ export default function OrganizerScan() {
         key: 'blocked',
         icon: <CloseIcon size={18} color={colors.red} />,
         value: String(cancelledTickets),
-        label: 'Bloques',
+        label: 'Bloqués',
         tone: 'danger' as const,
       },
     ],
     [cancelledTickets, stats.pending, stats.usedTickets],
   );
 
-  async function submitScan(code: string) {
+  async function submitScan(code: string, source: 'qr' | 'manual') {
     if (isSubmitting || !code.trim()) {
       return;
     }
 
     setIsSubmitting(true);
     try {
-      const result = await scanOrganizerTicket(token ?? undefined, code, gate);
+      const result = await scanOrganizerTicket(token ?? undefined, code, gate, source);
       setLastResult(result);
 
       switch (result?.outcome) {
@@ -116,25 +135,21 @@ export default function OrganizerScan() {
           setFeedback(`${result.ticket?.holderName ?? 'OK'} entre`);
           setManualCode('');
           setScannerActive(false);
-          setTimeout(() => setScannerActive(true), 1500);
           break;
         case 'already_used':
           Vibration.vibrate([50, 100, 50]);
           setFeedback('Deja scanne');
           setScannerActive(false);
-          setTimeout(() => setScannerActive(true), 2500);
           break;
         case 'cancelled':
           Vibration.vibrate([50, 100, 50]);
           setFeedback('Billet bloque');
           setScannerActive(false);
-          setTimeout(() => setScannerActive(true), 2500);
           break;
         default:
           Vibration.vibrate([50, 100, 50]);
           setFeedback('Introuvable');
           setScannerActive(false);
-          setTimeout(() => setScannerActive(true), 2500);
       }
     } finally {
       setIsSubmitting(false);
@@ -159,7 +174,19 @@ export default function OrganizerScan() {
       return;
     }
 
-    await submitScan(result.data);
+    await submitScan(result.data, 'qr');
+  }
+
+  const resultVisual = lastResult ? getScanOutcomeVisual(lastResult.outcome) : null;
+  const validationDetails: ScanValidationDetails | null =
+    lastResult?.scan && lastResult.ticket
+      ? buildScanValidationDetails({ audit: lastResult.scan, ticket: lastResult.ticket })
+      : null;
+
+  async function handleNextScan() {
+    setLastResult(null);
+    setFeedback('Vise le QR');
+    setScannerActive(true);
   }
 
   return (
@@ -171,19 +198,20 @@ export default function OrganizerScan() {
         <View style={styles.heroCard}>
           <View style={styles.heroTopRow}>
             <View style={styles.heroBadge}>
-              <QrIcon size={16} color={colors.orange} />
-              <Text style={styles.heroBadgeText}>Scan</Text>
+              <Pictogram pictogram="scan" tone="green" size={44} />
+              <Text style={styles.heroBadgeText}>SCANNER</Text>
             </View>
             <View style={[styles.liveChip, scannerActive && styles.liveChipActive]}>
               <View style={[styles.liveDot, scannerActive && styles.liveDotActive]} />
               <Text style={[styles.liveChipText, scannerActive && styles.liveChipTextActive]}>
-                {scannerActive ? 'LIVE' : 'READY'}
+                {scannerActive ? 'EN DIRECT' : 'PRÊT'}
               </Text>
             </View>
           </View>
 
           <Text style={styles.title}>Entree rapide</Text>
           <Text style={styles.subline}>QR d'abord, code si besoin.</Text>
+          <SpeakButton instruction="Place le code QR au centre du cadre. Si le scan échoue, entre le code du billet." label="Mode d'emploi" />
 
           <View style={styles.scanFrame}>
             {scannerActive ? (
@@ -197,9 +225,7 @@ export default function OrganizerScan() {
               />
             ) : (
               <View style={styles.cameraPlaceholder}>
-                <View style={styles.cameraIconShell}>
-                  <QrIcon size={124} color={organizerColors.text} strokeWidth={1.6} />
-                </View>
+                <View style={styles.cameraIconShell}><Pictogram pictogram="scan" tone="green" size={152} label="Scanner un code QR" /></View>
                 <View style={styles.cameraHintRow}>
                   <SparkIcon size={16} color={colors.orange} />
                   <Text style={styles.placeholderText}>{feedback}</Text>
@@ -207,23 +233,56 @@ export default function OrganizerScan() {
               </View>
             )}
 
-            <Pressable style={styles.torchButton} onPress={() => setTorchOn(!torchOn)}>
+            <Pressable accessibilityRole="button" accessibilityLabel={torchOn ? 'Éteindre la lampe' : 'Allumer la lampe'} accessibilityState={{ checked: torchOn }} style={styles.torchButton} onPress={() => setTorchOn(!torchOn)}>
               <SparkIcon size={16} color={torchOn ? colors.orange : organizerColors.text} />
             </Pressable>
           </View>
 
           <View style={styles.primaryActions}>
-            <Pressable style={[styles.bigAction, styles.bigActionPrimary, isSubmitting && styles.actionDisabled]} onPress={handleStartScanner} disabled={isSubmitting}>
-              <QrIcon size={18} color={colors.black} />
-              <Text style={styles.bigActionPrimaryText}>{scannerActive ? 'Camera ON' : 'Ouvrir camera'}</Text>
+            <Pressable accessibilityRole="button" accessibilityLabel="Ouvrir le scanner" accessibilityState={{ disabled: isSubmitting, busy: isSubmitting }} style={[styles.bigAction, styles.bigActionPrimary, isSubmitting && styles.actionDisabled]} onPress={handleStartScanner} disabled={isSubmitting}>
+              <Pictogram pictogram="scan" tone="green" size={48} />
+              <Text style={styles.bigActionPrimaryText}>{scannerActive ? 'CAMÉRA OUVERTE' : 'SCANNER'}</Text>
             </Pressable>
 
-            <Pressable style={styles.bigAction} onPress={() => router.push('/(organizer)/tickets' as never)}>
+            <Pressable accessibilityRole="button" accessibilityLabel="Ouvrir les billets" style={styles.bigAction} onPress={() => router.push('/(organizer)/tickets' as never)}>
               <TicketIcon size={18} color={organizerColors.text} />
               <Text style={styles.bigActionText}>Billets</Text>
             </Pressable>
           </View>
         </View>
+
+        {validationDetails ? (
+          <View style={[styles.validationCard, validationDetails.outcome === 'checked_in' ? styles.validationCardSuccess : styles.validationCardWarning]}>
+            <View style={styles.validationHeader}>
+              <StatusSeal pictogram={resultVisual?.key ?? 'history'} tone={resultVisual?.tone ?? 'yellow'} label={resultVisual?.label ?? 'SCAN'} hint={resultVisual?.hint} size={92} />
+              <View style={styles.validationHeaderBody}>
+                <Text style={styles.validationEyebrow}>Validation de passage</Text>
+                <Text style={styles.validationTitle}>{validationDetails.holderName}</Text>
+                <Text style={styles.validationCode}>{validationDetails.code}</Text>
+              </View>
+            </View>
+
+            <View style={styles.validationGrid}>
+              <ValidationRow label="Événement" value={validationDetails.eventTitle} />
+              <ValidationRow label="Date de l'événement" value={validationDetails.eventDate} />
+              <ValidationRow label="Lieu de l'événement" value={validationDetails.eventLocation} />
+              <ValidationRow label="Organisateur" value={validationDetails.eventOrganizer} />
+              <ValidationRow label="Place / catégorie" value={`${validationDetails.seat} · ${validationDetails.ticketTier}`} />
+              <ValidationRow label="Montant du billet" value={validationDetails.pricePaidLabel} />
+              <ValidationRow label="Porte / lieu du scan" value={validationDetails.gate} />
+              <ValidationRow label="Jour et heure" value={validationDetails.scannedAtLabel} />
+              <ValidationRow label="Heure serveur exacte" value={validationDetails.scannedAtIso} />
+              <ValidationRow label="Scanné par" value={`${validationDetails.scannerName} · ${validationDetails.scannerRole}`} />
+              <ValidationRow label="Source" value={validationDetails.sourceLabel} />
+              <ValidationRow label="Identifiant de contrôle" value={validationDetails.auditId} />
+            </View>
+
+            <Pressable accessibilityRole="button" accessibilityLabel="Scanner le billet suivant" style={styles.nextScanAction} onPress={() => void handleNextScan()}>
+              <Pictogram pictogram="scan" tone="green" size={26} />
+              <Text style={styles.nextScanActionText}>Scanner le billet suivant</Text>
+            </Pressable>
+          </View>
+        ) : null}
 
         <View style={styles.summaryRow}>
           {summaryTiles.map((tile) => (
@@ -289,14 +348,14 @@ export default function OrganizerScan() {
               <Text style={styles.sectionEyebrow}>Porte</Text>
               <Text style={styles.sectionTitleSmall}>{gate}</Text>
             </View>
-            <Text style={styles.sectionMeta}>{stats.queued} files</Text>
+            <Text style={styles.sectionMeta}>{stats.queued} en attente</Text>
           </View>
 
           <View style={styles.gateChips}>
             {GATE_OPTIONS.map((option) => {
               const active = gate === option;
               return (
-                <Pressable key={option} style={[styles.gateChip, active && styles.gateChipActive]} onPress={() => setGate(option)}>
+                <Pressable accessibilityRole="button" accessibilityLabel={`Porte ${option}`} accessibilityState={{ selected: active }} key={option} style={[styles.gateChip, active && styles.gateChipActive]} onPress={() => setGate(option)}>
                   <Text style={[styles.gateChipText, active && styles.gateChipTextActive]}>{option}</Text>
                 </Pressable>
               );
@@ -325,9 +384,9 @@ export default function OrganizerScan() {
             autoCapitalize="characters"
           />
 
-          <Pressable
+          <Pressable accessibilityRole="button" accessibilityLabel="Valider le code du billet" accessibilityState={{ disabled: !manualCode.trim() || isSubmitting, busy: isSubmitting }}
             style={[styles.submitAction, (!manualCode.trim() || isSubmitting) && styles.actionDisabled]}
-            onPress={() => void submitScan(manualCode)}
+            onPress={() => void submitScan(manualCode, 'manual')}
             disabled={!manualCode.trim() || isSubmitting}
           >
             <TicketIcon size={16} color={colors.black} />
@@ -335,7 +394,7 @@ export default function OrganizerScan() {
           </Pressable>
         </View>
 
-        {lastResult?.ticket ? (
+        {lastResult && resultVisual && !validationDetails ? (
           <View
             style={[
               styles.resultCard,
@@ -347,20 +406,11 @@ export default function OrganizerScan() {
             ]}
           >
             <View style={styles.resultTopRow}>
-              <View style={styles.resultIconShell}>
-                {lastResult.outcome === 'checked_in' ? (
-                  <UserIcon size={18} color={organizerColors.success} />
-                ) : lastResult.outcome === 'cancelled' ? (
-                  <CloseIcon size={18} color={colors.red} />
-                ) : (
-                  <ClipboardIcon size={18} color={colors.orange} />
-                )}
-              </View>
+              <StatusSeal pictogram={resultVisual.key} tone={resultVisual.tone} label={resultVisual.label} hint={resultVisual.hint} size={104} />
               <View style={styles.resultBody}>
-                <Text style={styles.resultTitle}>{lastResult.ticket.holderName}</Text>
-                <Text style={styles.resultMeta}>{lastResult.ticket.code}</Text>
+                <Text style={styles.resultTitle}>{lastResult.ticket?.holderName ?? 'Billet inconnu'}</Text>
+                <Text style={styles.resultMeta}>{lastResult.ticket?.code ?? 'Entrer le code à la main'}</Text>
               </View>
-              <Text style={styles.resultStatus}>{labelForOutcome(lastResult.outcome)}</Text>
             </View>
           </View>
         ) : null}
@@ -403,17 +453,13 @@ function MiniCount({ icon, value }: { icon: React.ReactNode; value: number }) {
   );
 }
 
-function labelForOutcome(outcome: BackendOrganizerTicketScanResult['outcome']) {
-  if (outcome === 'checked_in') {
-    return 'OK';
-  }
-  if (outcome === 'cancelled') {
-    return 'STOP';
-  }
-  if (outcome === 'already_used') {
-    return 'DEJA';
-  }
-  return 'NON';
+function ValidationRow({ label, value }: { label: string; value: string }) {
+  return (
+    <View style={styles.validationRow}>
+      <Text style={styles.validationLabel}>{label}</Text>
+      <Text style={styles.validationValue}>{value}</Text>
+    </View>
+  );
 }
 
 const styles = StyleSheet.create({
@@ -880,6 +926,82 @@ const styles = StyleSheet.create({
     fontSize: typography.fontSize.xs,
     color: organizerColors.text,
     letterSpacing: 1.1,
+  },
+  validationCard: {
+    gap: 16,
+    padding: 18,
+    borderRadius: 28,
+    borderWidth: 2,
+  },
+  validationCardSuccess: {
+    backgroundColor: organizerColors.successSoft,
+    borderColor: organizerColors.success,
+  },
+  validationCardWarning: {
+    backgroundColor: organizerColors.warningSoft,
+    borderColor: colors.orange,
+  },
+  validationHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  validationHeaderBody: {
+    flex: 1,
+    gap: 3,
+  },
+  validationEyebrow: {
+    fontFamily: typography.fontFamily.bold,
+    fontSize: typography.fontSize.xs,
+    color: colors.orange,
+    textTransform: 'uppercase',
+    letterSpacing: 1.1,
+  },
+  validationTitle: {
+    fontFamily: typography.fontFamily.bold,
+    fontSize: typography.fontSize.xl,
+    color: organizerColors.text,
+  },
+  validationCode: {
+    fontFamily: typography.fontFamily.bold,
+    fontSize: typography.fontSize.sm,
+    color: organizerColors.textSecondary,
+    letterSpacing: 0.8,
+  },
+  validationGrid: {
+    gap: 9,
+    padding: 12,
+    borderRadius: 18,
+    backgroundColor: 'rgba(255,249,244,0.72)',
+  },
+  validationRow: {
+    gap: 2,
+  },
+  validationLabel: {
+    fontFamily: typography.fontFamily.medium,
+    fontSize: typography.fontSize.xs,
+    color: organizerColors.textMuted,
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+  },
+  validationValue: {
+    fontFamily: typography.fontFamily.semiBold,
+    fontSize: typography.fontSize.sm,
+    color: organizerColors.text,
+  },
+  nextScanAction: {
+    minHeight: 56,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    borderRadius: 18,
+    backgroundColor: colors.orange,
+  },
+  nextScanActionText: {
+    fontFamily: typography.fontFamily.bold,
+    fontSize: typography.fontSize.sm,
+    color: colors.black,
   },
   actionDisabled: {
     opacity: 0.65,

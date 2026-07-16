@@ -75,8 +75,8 @@ test('buildOrganizerDigest prefers scan counters when present', () => {
 
   const digest = buildOrganizerDigest(dashboard, scans, 1);
   assert.deepEqual(digest.stats, [
-    { label: 'Events', value: '3' },
-    { label: 'Sales', value: '24' },
+    { label: 'Sorties', value: '3' },
+    { label: 'Ventes', value: '24' },
     { label: 'Scan', value: '7/10' },
   ]);
 });

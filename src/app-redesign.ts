@@ -48,8 +48,8 @@ export function buildOrganizerDigest(
   const total = scanStats?.totalTickets ?? 0;
   return {
     stats: [
-      { label: 'Events', value: String(liveEvents) },
-      { label: 'Sales', value: String(stats.sales) },
+      { label: 'Sorties', value: String(liveEvents) },
+      { label: 'Ventes', value: String(stats.sales) },
       { label: 'Scan', value: total > 0 ? `${scanned}/${total}` : `${stats.scanRate}%` },
     ],
   };

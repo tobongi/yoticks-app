@@ -12,9 +12,10 @@ import {
   type BackendUpdateTicketInput,
 } from '../backend';
 import { useAuth } from '../auth';
-import { CalendarIcon, ClipboardIcon, MapIcon, TicketIcon, UserIcon } from '../icons';
+import { CalendarIcon, ClipboardIcon, MapIcon, UserIcon } from '../icons';
 import { useLiveRefresh } from '../live-refresh';
 import { Chip, HeroPanel, LivedBackground, ScreenHeader, SectionBlock, StatRow } from '../ui/lived-in';
+import { TicketStubArt } from '../ui/pictograms';
 import { usePhoneLayout } from '../ui/responsive';
 
 type TicketStatusOption = BackendTicket['status'];
@@ -50,7 +51,7 @@ export function OrganizerTicketDetail() {
     const fallback = FALLBACK_TICKETS.filter((entry) => entry.event.organizerId === user.id).find((entry) => entry.id === id) ?? null;
     setTicket(fallback);
     getOrganizerTicket(token ?? undefined, user.id, id).then(setTicket);
-  }, [refreshTick, token, user?.id, id]);
+  }, [refreshTick, token, user, id]);
 
   useEffect(() => {
     if (!ticket) {
@@ -89,7 +90,7 @@ export function OrganizerTicketDetail() {
           <Text style={styles.kicker}>Billet</Text>
           <Text style={styles.emptyTitle}>Introuvable</Text>
           <Text style={styles.emptyCopy}>Ce billet n'est pas dans ton espace.</Text>
-          <Pressable style={styles.primaryButton} onPress={() => router.replace('/(organizer)/tickets')}>
+          <Pressable accessibilityRole="button" accessibilityLabel="Retour aux billets" style={styles.primaryButton} onPress={() => router.replace('/(organizer)/tickets')}>
             <Text style={styles.primaryButtonText}>Retour billets</Text>
           </Pressable>
         </View>
@@ -117,7 +118,7 @@ export function OrganizerTicketDetail() {
           <Text style={styles.coverMeta}>{ticket.event.location} • {ticket.event.date}</Text>
         </ImageBackground>
 
-        <HeroPanel eyebrow="Controle porte" title="Lecture rapide" subtitle="Code, place, porte, etat." art={<TicketIcon size={34} color={colors.orange} />}>
+        <HeroPanel eyebrow="Porte" title="Contrôle rapide" subtitle="Code • place • état" art={<TicketStubArt tone="green" size={92} />}>
           <StatRow
             items={[
               { label: 'Code', value: ticket.code },
@@ -145,12 +146,12 @@ export function OrganizerTicketDetail() {
               autoCorrect={false}
             />
           </View>
-          <Pressable style={[styles.primaryButton, isSaving && styles.buttonDisabled]} onPress={handleSave} disabled={isSaving}>
+          <Pressable accessibilityRole="button" accessibilityLabel="Enregistrer le billet" accessibilityState={{ disabled: isSaving, busy: isSaving }} style={[styles.primaryButton, isSaving && styles.buttonDisabled]} onPress={handleSave} disabled={isSaving}>
             <Text style={styles.primaryButtonText}>{isSaving ? 'Sauvegarde...' : 'Sauver'}</Text>
           </Pressable>
         </SectionBlock>
 
-        <SectionBlock eyebrow="Event" title="Contexte">
+        <SectionBlock eyebrow="Sortie" title="Contexte">
           <View style={styles.infoGrid}>
             <InfoTile icon={<CalendarIcon size={16} color={colors.orange} />} label="Date" value={ticket.event.date} width={layout.twoUpWidth} />
             <InfoTile icon={<MapIcon size={16} color={colors.orange} />} label="Lieu" value={ticket.event.location} width={layout.twoUpWidth} />

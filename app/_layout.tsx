@@ -1,4 +1,4 @@
-import { Stack } from 'expo-router';
+import { router, Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { View } from 'react-native';
 import {
@@ -12,7 +12,7 @@ import { SafeAreaProvider, initialWindowMetrics } from 'react-native-safe-area-c
 import { colors } from '../src/theme/colors';
 import { AuthProvider } from '../src/auth';
 import { I18nProvider } from '../src/i18n';
-import { ensureNotificationPermissions } from '../src/notifications';
+import { getLastNotificationRoute, subscribeToNotificationRoutes } from '../src/notifications';
 import { SavedEventsProvider } from '../src/saved-events';
 import { useEffect } from 'react';
 
@@ -25,7 +25,15 @@ export default function RootLayout() {
   });
 
   useEffect(() => {
-    void ensureNotificationPermissions();
+    let active = true;
+    void getLastNotificationRoute().then((route) => {
+      if (active && route) router.push(route as never);
+    });
+    const unsubscribe = subscribeToNotificationRoutes((route) => router.push(route as never));
+    return () => {
+      active = false;
+      unsubscribe();
+    };
   }, []);
 
   if (!fontsLoaded) {
@@ -43,6 +51,7 @@ export default function RootLayout() {
               <Stack.Screen name="onboarding" />
               <Stack.Screen name="auth/login" />
               <Stack.Screen name="auth/register" />
+              <Stack.Screen name="auth/reset" />
               <Stack.Screen name="(tabs)" />
               <Stack.Screen name="(organizer)" />
               <Stack.Screen name="platform" options={{ presentation: 'card' }} />
@@ -51,6 +60,8 @@ export default function RootLayout() {
               <Stack.Screen name="event/[id]" options={{ presentation: 'card' }} />
               <Stack.Screen name="ticket/[id]" options={{ presentation: 'modal' }} />
               <Stack.Screen name="notifications" options={{ presentation: 'card' }} />
+              <Stack.Screen name="settings" options={{ presentation: 'card' }} />
+              <Stack.Screen name="legal" options={{ presentation: 'card' }} />
             </Stack>
           </SavedEventsProvider>
         </AuthProvider>

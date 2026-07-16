@@ -13,9 +13,9 @@ import {
   type BackendEvent,
 } from '../backend';
 import { useAuth } from '../auth';
-import { CalendarIcon, ClipboardIcon, MapIcon, TicketIcon } from '../icons';
 import { useLiveRefresh } from '../live-refresh';
 import { ActionTile, Chip, HeroPanel, InlineScroll, LivedBackground, ScreenHeader, SectionBlock, StatRow } from '../ui/lived-in';
+import { Pictogram, TicketStubArt } from '../ui/pictograms';
 import { usePhoneLayout } from '../ui/responsive';
 
 type OrganizerEventManagerProps = {
@@ -61,7 +61,7 @@ export function OrganizerEventManager({ mode = 'edit' }: OrganizerEventManagerPr
       ...current,
       organizer: current.organizer?.trim() ? current.organizer : user.name,
     }));
-  }, [user?.name]);
+  }, [user]);
 
   useEffect(() => {
     if (isCreateMode || !user || typeof id !== 'string' || !id.trim()) {
@@ -73,7 +73,7 @@ export function OrganizerEventManager({ mode = 'edit' }: OrganizerEventManagerPr
     listOrganizerEvents(token ?? undefined, user.id).then((items) => {
       setEvent(items.find((entry) => entry.id === id) ?? null);
     });
-  }, [id, isCreateMode, refreshTick, token, user?.id]);
+  }, [id, isCreateMode, refreshTick, token, user]);
 
   useEffect(() => {
     if (isCreateMode) {
@@ -168,7 +168,7 @@ export function OrganizerEventManager({ mode = 'edit' }: OrganizerEventManagerPr
           <Text style={styles.kicker}>Event</Text>
           <Text style={styles.emptyTitle}>Introuvable</Text>
           <Text style={styles.emptyCopy}>Cette fiche n'est pas dans ton espace.</Text>
-          <Pressable style={styles.primaryButton} onPress={() => router.replace('/(organizer)/events')}>
+          <Pressable accessibilityRole="button" accessibilityLabel="Retour aux événements" style={styles.primaryButton} onPress={() => router.replace('/(organizer)/events')}>
             <Text style={styles.primaryButtonText}>Retour events</Text>
           </Pressable>
         </View>
@@ -200,7 +200,7 @@ export function OrganizerEventManager({ mode = 'edit' }: OrganizerEventManagerPr
           eyebrow="Pilotage"
           title={isCreateMode ? 'Monter la fiche' : 'Ajuster vite'}
           subtitle="Infos courtes, action claire, fiche prete a publier."
-          art={<ClipboardIcon size={34} color={colors.orange} />}
+          art={<Pictogram pictogram={isCreateMode ? 'celebrate' : 'art'} tone={isCreateMode ? 'yellow' : 'orange'} size={78} />}
         >
           <StatRow
             items={[
@@ -213,8 +213,8 @@ export function OrganizerEventManager({ mode = 'edit' }: OrganizerEventManagerPr
 
         {!isCreateMode ? (
           <View style={styles.tileGrid}>
-            <ActionTile icon={<TicketIcon size={20} color={colors.orange} />} label="Billets" hint="Vendus" style={{ width: layout.tileWidth }} onPress={() => router.push('/(organizer)/tickets' as never)} />
-            <ActionTile icon={<ClipboardIcon size={20} color={colors.green} />} label="Scan" hint="Entree" tone="green" style={{ width: layout.tileWidth }} onPress={() => router.push('/(organizer)/scan' as never)} />
+            <ActionTile icon={<TicketStubArt tone="blue" size={54} />} label="Billets" tone="blue" style={{ width: layout.tileWidth }} onPress={() => router.push('/(organizer)/tickets' as never)} />
+            <ActionTile icon={<Pictogram pictogram="scan" tone="green" size={48} />} label="Scanner" tone="green" style={{ width: layout.tileWidth }} onPress={() => router.push('/(organizer)/scan' as never)} />
           </View>
         ) : null}
 
@@ -273,7 +273,7 @@ export function OrganizerEventManager({ mode = 'edit' }: OrganizerEventManagerPr
         </SectionBlock>
 
         <View style={styles.footerActions}>
-          <Pressable style={[styles.primaryButton, isSaving && styles.buttonDisabled]} onPress={handleSave} disabled={isSaving}>
+          <Pressable accessibilityRole="button" accessibilityLabel="Enregistrer l'événement" accessibilityState={{ disabled: isSaving, busy: isSaving }} style={[styles.primaryButton, isSaving && styles.buttonDisabled]} onPress={handleSave} disabled={isSaving}>
             <Text style={styles.primaryButtonText}>{isSaving ? 'Sauvegarde...' : isCreateMode ? 'Creer' : 'Sauver'}</Text>
           </Pressable>
         </View>

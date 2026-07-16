@@ -129,13 +129,20 @@ test('backend and database flow stays coherent from seed through checkout', asyn
     assert.equal(updatedProfile.response.status, 200);
     assert.equal(updatedProfile.json.user.name, 'Updated Flow User');
 
-    const resetPasswordResponse = await requestJson<{ ok: boolean }>(baseUrl, '/auth/reset-password', {
+    const resetPasswordRequest = await requestJson<{ ok: boolean; resetToken: string }>(baseUrl, '/auth/password-reset/request', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         email: updatedProfile.json.user.email,
-        password: 'Password456!',
       }),
+    });
+    assert.equal(resetPasswordRequest.response.status, 202);
+    assert.equal(resetPasswordRequest.json.ok, true);
+
+    const resetPasswordResponse = await requestJson<{ ok: boolean }>(baseUrl, '/auth/password-reset/confirm', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token: resetPasswordRequest.json.resetToken, password: 'Password456!' }),
     });
     assert.equal(resetPasswordResponse.response.status, 200);
     assert.equal(resetPasswordResponse.json.ok, true);

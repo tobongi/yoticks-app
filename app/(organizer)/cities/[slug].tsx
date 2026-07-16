@@ -8,8 +8,10 @@ import { shadow } from '../../../src/theme/shadows';
 import { typography } from '../../../src/theme/typography';
 import { FALLBACK_EVENTS, listOrganizerEvents, type BackendEvent } from '../../../src/backend';
 import { groupEventsByCity } from '../../../src/cities';
-import { ArrowLeftIcon, CalendarIcon, ChevronRightIcon, MapIcon, SparkIcon } from '../../../src/icons';
+import { ArrowLeftIcon, CalendarIcon, ChevronRightIcon, MapIcon } from '../../../src/icons';
 import { useAuth } from '../../../src/auth';
+import { LivedBackground } from '../../../src/ui/lived-in';
+import { Pictogram } from '../../../src/ui/pictograms';
 
 export default function OrganizerCityDetail() {
   const { slug } = useLocalSearchParams<{ slug?: string | string[] }>();
@@ -24,7 +26,7 @@ export default function OrganizerCityDetail() {
     const fallbackEvents = FALLBACK_EVENTS.filter((event) => event.organizerId === user.id);
     setEvents(fallbackEvents);
     listOrganizerEvents(token ?? undefined, user.id).then(setEvents);
-  }, [token, user?.id]);
+  }, [token, user]);
 
   const cityKey = Array.isArray(slug) ? slug[0] ?? '' : slug ?? '';
   const cityGroup = useMemo(() => groupEventsByCity(events).find((group) => group.key === cityKey), [cityKey, events]);
@@ -32,6 +34,7 @@ export default function OrganizerCityDetail() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
+      <LivedBackground />
       <ScrollView style={styles.container} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.topRow}>
           <Pressable
@@ -49,25 +52,25 @@ export default function OrganizerCityDetail() {
             <ArrowLeftIcon size={16} color={organizerColors.text} />
           </Pressable>
           <View style={styles.topCopy}>
-            <Text style={styles.kicker}>City detail</Text>
-            <Text style={styles.title}>{cityGroup?.label ?? 'City not found'}</Text>
+            <Text style={styles.kicker}>Ville</Text>
+            <Text style={styles.title}>{cityGroup?.label ?? 'Ville inconnue'}</Text>
           </View>
         </View>
 
         <View style={styles.heroCard}>
           <View style={styles.heroPill}>
-            <SparkIcon size={12} color={colors.orange} />
-            <Text style={styles.heroPillText}>Live city view</Text>
+            <Pictogram pictogram="map" tone="yellow" size={52} />
+            <Text style={styles.heroPillText}>EN DIRECT</Text>
           </View>
           <Text style={styles.heroCopy}>
             {cityGroup
-              ? 'These are the organizer events currently grouped under this city. Tap any event to open its publishing shell.'
-              : 'That city is not available in this organizer account.'}
+              ? 'Événements dans cette ville.'
+              : 'Cette ville n’est pas disponible.'}
           </Text>
 
           <View style={styles.metricRow}>
             <Metric label="Villes" value={String(groupEventsByCity(events).length)} />
-            <Metric label="Events" value={String(cityEvents.length)} />
+            <Metric label="Sorties" value={String(cityEvents.length)} />
             <Metric label="Payants" value={String(cityEvents.filter((event) => event.price !== 'Gratuit').length)} />
           </View>
         </View>
@@ -80,7 +83,7 @@ export default function OrganizerCityDetail() {
                   <MapIcon size={16} color={colors.orange} />
                 </View>
                 <View style={styles.highlightCopy}>
-                  <Text style={styles.highlightLabel}>City scope</Text>
+                  <Text style={styles.highlightLabel}>Ville</Text>
                   <Text style={styles.highlightTitle}>{cityGroup.label}</Text>
                 </View>
               </View>
@@ -90,8 +93,7 @@ export default function OrganizerCityDetail() {
             </View>
 
             <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>City events</Text>
-              <Text style={styles.sectionCaption}>Open an event to manage publishing details and readiness.</Text>
+              <Text style={styles.sectionTitle}>Événements</Text>
             </View>
 
             <View style={styles.list}>
@@ -126,7 +128,7 @@ export default function OrganizerCityDetail() {
             <CalendarIcon size={18} color={colors.orange} />
             <Text style={styles.emptyTitle}>No matching city yet</Text>
             <Text style={styles.emptyCopy}>Go back to the city list and pick one of the live locations in this organizer account.</Text>
-            <Pressable style={styles.emptyAction} onPress={() => router.replace('/(organizer)/cities' as never)}>
+            <Pressable accessibilityRole="button" accessibilityLabel="Voir les villes" style={styles.emptyAction} onPress={() => router.replace('/(organizer)/cities' as never)}>
               <Text style={styles.emptyActionText}>Back to cities</Text>
             </Pressable>
           </View>

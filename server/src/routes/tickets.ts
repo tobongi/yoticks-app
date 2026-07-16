@@ -54,6 +54,20 @@ ticketsRouter.post('/reserve', async (req: AuthRequest, res) => {
         ? tier.trim().toLowerCase()
         : 'standard';
 
+  const quote = await store.quoteReservation(
+    req.userId!,
+    eventId.trim(),
+    normalizedTier,
+    typeof quantity === 'number' ? quantity : 1,
+    typeof promoCode === 'string' ? promoCode : undefined,
+  );
+  if (!quote) {
+    return res.status(404).json({ error: 'Billet introuvable' });
+  }
+  if (quote.status === 'available' && quote.total > 0) {
+    return res.status(402).json({ error: 'Paiement vérifié requis avant émission du billet' });
+  }
+
   const reservation = await store.reserveTickets(
     req.userId!,
     eventId.trim(),

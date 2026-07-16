@@ -2,7 +2,7 @@
 
 YoTicks is an Expo Router ticketing app with a local Express + Prisma backend.
 
-It now covers the full demo journey for both sides of the marketplace:
+It covers the release-candidate journey for both sides of the marketplace:
 
 - attendee event discovery, search, detail, reservation, and checkout handoff
 - dynamic ticket tiers with live inventory, sold-out states, quantity limits, waitlist handling, and promo code quoting
@@ -12,9 +12,10 @@ It now covers the full demo journey for both sides of the marketplace:
 - organizer console, event creation, event editing, publishing state, media fields, analytics, and ticket operations
 - organizer QR/manual ticket check-in
 - organizer merchant onboarding before payment collection
-- account login, registration, profile editing, and password reset
+- account login, registration, secure native session restoration, profile editing, single-use password recovery, and in-app deletion
 - seeded local data in SQLite for venues, events, users, tickets, providers, and merchant accounts
 - deterministic local venue and event artwork rendered as PNG data URLs
+- a low-literacy visual language with concrete SVG pictograms, ticket-shaped objects, color-plus-label status seals, 48px touch targets, and optional tap-to-hear guidance
 
 ## Local Development
 
@@ -100,12 +101,30 @@ npm run server:db:setup
 
 ## Payments And Merchant Readiness
 
-Paid reservations go through a checkout-session flow instead of issuing tickets immediately.
+Paid inventory is fail-closed. The public reservation endpoint returns HTTP 402 for a paid tier, so it cannot issue a QR without verified payment. The client also keeps paid checkout disabled unless `EXPO_PUBLIC_ENABLE_PAID_CHECKOUT=true` is explicitly provided.
 
 1. The attendee chooses a payment method on `/reserver/[id]`.
 2. The app creates `/api/payments/checkout-sessions`.
 3. The provider handoff screen opens at `/checkout/[sessionId]`.
 4. If the organizer merchant profile is incomplete, the flow routes to `/(organizer)/payouts` so payment collection is blocked until merchant details are entered.
+
+MBIYOPAY production configuration is server-only: set `MBIYOPAY_API_KEY`, `MBIYOPAY_WEBHOOK_SECRET`, `MBIYOPAY_API_BASE_URL`, and `MBIYOPAY_WEBHOOK_URL` in the hosting environment. The canonical callback is `https://<api-host>/api/payments/mobile-money/webhook`; `/api/mbiyopay/notify` remains accepted only for compatibility with an older dashboard configuration. Never put the private key or webhook secret in Expo public variables or tracked files.
+
+Paid checkout has two independent switches: `PAID_CHECKOUT_ENABLED=true` on the server and `EXPO_PUBLIC_ENABLE_PAID_CHECKOUT=true` in the Expo build. Production server startup refuses the server switch when the provider key, signature secret, public HTTPS host, or canonical callback path is missing. The callback route answers `GET` with a redacted readiness document and accepts only correctly signed provider `POST` requests.
+
+The server converts application amounts to MBIYOPAY's lowest denomination, verifies payment amounts and currencies, supports MBIYOPAY transaction-status refresh and reconciliation, supports webhook resend recovery, and supports the provider's PIN finalization flow. A successful finalize response is still pending until the signed webhook or status refresh confirms the payment.
+
+For sandbox testing, use the MBIYOPAY Test API Key with the same API base URL. The documented CD test numbers ending in `0000`, `1111`, `2222`, `3333`, and `9999` simulate successful, pending, and failed transactions without real money. Sandbox transactions are isolated from live balances.
+
+Production activation order is strict:
+
+1. Deploy the API and apply the production database schema.
+2. Configure the provider key, webhook signature secret, and canonical callback URL in the host and MBIYOPAY dashboard.
+3. Keep both paid-checkout switches false and run `npm run payments:webhook:check`. It must return HTTP 200 and report `ok: true`.
+4. Run a signed sandbox payment, close the app while it is pending, and confirm the webhook issues exactly one ticket.
+5. Set `PAID_CHECKOUT_ENABLED=true`, redeploy the API, set `EXPO_PUBLIC_ENABLE_PAID_CHECKOUT=true`, and create fresh store binaries.
+
+The checkout asks the attendee to select the mobile-money country and currency explicitly. Pending payments poll automatically, show a visible 90-second timeout and manual refresh action, and failed/cancelled attempts expose a fresh retry action. A checkout-session record or provider screen is never treated as payment.
 
 ## Camera And QR Scanning
 
@@ -131,6 +150,15 @@ App tests:
 ```bash
 npm test
 ```
+
+Full release gate:
+
+```bash
+npm run verify
+```
+
+Store submission, privacy, terms, and device gates are documented in `docs/STORE_SUBMISSION.md`, `docs/PRIVACY.md`, `docs/TERMS.md`, and `docs/RELEASE_CHECKLIST.md`.
+The interface rules and field-validation protocol are documented in `docs/LOW_LITERACY_DESIGN.md`.
 
 Backend tests:
 

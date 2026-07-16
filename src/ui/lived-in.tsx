@@ -3,19 +3,23 @@ import { ImageBackground, Pressable, ScrollView, StyleProp, StyleSheet, Text, Vi
 import { colors } from '../theme/colors';
 import { shadow } from '../theme/shadows';
 import { typography } from '../theme/typography';
+import { Pictogram } from './pictograms';
+import { getCategoryVisual, type PictogramKey, type VisualTone } from './visual-language';
 
-type Tone = 'orange' | 'green' | 'yellow' | 'ink';
+type Tone = VisualTone;
 
 const toneMap: Record<Tone, { tint: string; border: string; ink: string; soft: string }> = {
   orange: { tint: colors.orange, border: colors.borderOrange, ink: colors.orange, soft: colors.accentWash },
   green: { tint: colors.green, border: colors.green + '33', ink: colors.green, soft: colors.green + '14' },
   yellow: { tint: colors.yellow, border: colors.yellow + '55', ink: colors.black, soft: colors.yellow + '18' },
+  blue: { tint: colors.blue, border: colors.blue + '44', ink: colors.blue, soft: colors.surfaceBlue },
+  red: { tint: colors.red, border: colors.red + '44', ink: colors.red, soft: '#FFF0F0' },
   ink: { tint: colors.black, border: colors.borderStrong, ink: colors.black, soft: colors.cardHover },
 };
 
 export function LivedBackground() {
   return (
-    <View pointerEvents="none" style={[StyleSheet.absoluteFill, styles.backgroundFrame]}>
+    <View style={[StyleSheet.absoluteFill, styles.backgroundFrame, { pointerEvents: 'none' }]}>
       <View style={styles.orbTop} />
       <View style={styles.orbBottom} />
       <View style={styles.grid} />
@@ -79,7 +83,7 @@ export function HeroPanel({
   );
 }
 
-export function StatRow({ items }: { items: Array<{ label: string; value: string }> }) {
+export function StatRow({ items }: { items: { label: string; value: string }[] }) {
   return (
     <View style={styles.statRow}>
       {items.map((item) => (
@@ -114,6 +118,7 @@ export function ActionTile({
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel ?? label}
+      accessibilityHint={hint}
       style={[styles.actionTile, { backgroundColor: palette.soft, borderColor: palette.border }, style]}
       onPress={onPress}
     >
@@ -154,14 +159,19 @@ export function Chip({
   active = false,
   onPress,
   accessibilityLabel,
+  pictogram,
+  tone = 'orange',
 }: {
   label: string;
   active?: boolean;
   onPress?: () => void;
   accessibilityLabel?: string;
+  pictogram?: PictogramKey;
+  tone?: Tone;
 }) {
   return (
     <Pressable accessibilityRole="button" accessibilityLabel={accessibilityLabel ?? label} style={[styles.chip, active && styles.chipActive]} onPress={onPress}>
+      {pictogram ? <Pictogram pictogram={pictogram} tone={tone} size={30} /> : null}
       <Text style={[styles.chipText, active && styles.chipTextActive]}>{label}</Text>
     </Pressable>
   );
@@ -186,11 +196,15 @@ export function VisualCard({
   right?: ReactNode;
   accessibilityLabel?: string;
 }) {
+  const visual = getCategoryVisual(subtitle ?? '');
   const content = (
     <>
       {imageUrl ? (
         <ImageBackground source={{ uri: imageUrl }} style={styles.cardThumb} imageStyle={styles.cardThumbImage}>
           <View style={styles.cardOverlay} />
+          <View style={styles.cardPictogram}>
+            <Pictogram pictogram={visual.key} tone={visual.tone} size={32} />
+          </View>
           {badge ? (
             <View style={styles.cardBadge}>
               <Text style={styles.cardBadgeText}>{badge}</Text>
@@ -198,7 +212,9 @@ export function VisualCard({
           ) : null}
         </ImageBackground>
       ) : (
-        <View style={styles.cardThumbFallback} />
+        <View style={styles.cardThumbFallback}>
+          <Pictogram pictogram={visual.key} tone={visual.tone} size={50} />
+        </View>
       )}
       <View style={styles.visualCardBody}>
         <Text style={styles.visualCardTitle} numberOfLines={2}>
@@ -237,6 +253,57 @@ export function VisualCard({
     <Pressable accessibilityRole="button" accessibilityLabel={accessibilityLabel ?? title} style={styles.visualCard} onPress={onPress}>
       {content}
     </Pressable>
+  );
+}
+
+export function PrimaryAction({
+  label,
+  pictogram,
+  onPress,
+  tone = 'orange',
+  disabled = false,
+  accessibilityHint,
+}: {
+  label: string;
+  pictogram: PictogramKey;
+  onPress?: () => void;
+  tone?: Tone;
+  disabled?: boolean;
+  accessibilityHint?: string;
+}) {
+  const palette = toneMap[tone];
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      accessibilityHint={accessibilityHint}
+      accessibilityState={{ disabled }}
+      disabled={disabled}
+      onPress={onPress}
+      style={({ pressed }) => [
+        styles.primaryAction,
+        { backgroundColor: palette.tint, borderColor: palette.ink },
+        pressed && !disabled && styles.primaryActionPressed,
+        disabled && styles.primaryActionDisabled,
+      ]}
+    >
+      <View style={styles.primaryActionIcon}>
+        <Pictogram pictogram={pictogram} tone={tone} size={46} />
+      </View>
+      <Text style={[styles.primaryActionText, { color: tone === 'ink' ? colors.ivory : colors.black }]}>{label}</Text>
+    </Pressable>
+  );
+}
+
+export function MetaPill({ pictogram, tone = 'ink', label, value }: { pictogram: PictogramKey; tone?: Tone; label: string; value: string }) {
+  return (
+    <View style={styles.metaPill} accessibilityLabel={`${label}: ${value}`}>
+      <Pictogram pictogram={pictogram} tone={tone} size={38} />
+      <View style={styles.metaPillCopy}>
+        <Text style={styles.metaPillLabel}>{label}</Text>
+        <Text style={styles.metaPillValue} numberOfLines={2}>{value}</Text>
+      </View>
+    </View>
   );
 }
 
@@ -289,8 +356,8 @@ const styles = StyleSheet.create({
   headerCopy: { flex: 1, gap: 6 },
   eyebrow: {
     fontFamily: typography.fontFamily.semiBold,
-    fontSize: typography.fontSize.xs,
-    letterSpacing: 2,
+    fontSize: typography.fontSize.sm,
+    letterSpacing: 1.2,
     textTransform: 'uppercase',
     color: colors.textMuted,
   },
@@ -300,7 +367,7 @@ const styles = StyleSheet.create({
     borderRadius: 28,
     borderWidth: 1,
     backgroundColor: colors.card,
-    padding: 18,
+    padding: 20,
     gap: 16,
     ...shadow({ color: '#000', opacity: 0.12, radius: 24, offset: { width: 0, height: 10 }, elevation: 8 }),
   },
@@ -310,8 +377,8 @@ const styles = StyleSheet.create({
   heroEyebrow: { alignSelf: 'flex-start', paddingHorizontal: 12, paddingVertical: 7, borderRadius: 999, borderWidth: 1 },
   heroEyebrowText: { fontFamily: typography.fontFamily.semiBold, fontSize: typography.fontSize.xs, letterSpacing: 1.3, textTransform: 'uppercase' },
   heroTitle: { fontFamily: typography.fontFamily.bold, fontSize: typography.fontSize['2xl'], lineHeight: 34, color: colors.text },
-  heroSubtitle: { fontFamily: typography.fontFamily.regular, fontSize: typography.fontSize.base, lineHeight: 23, color: colors.textSecondary },
-  heroArt: { alignItems: 'center', justifyContent: 'center' },
+  heroSubtitle: { fontFamily: typography.fontFamily.medium, fontSize: typography.fontSize.sm, lineHeight: 20, color: colors.textSecondary },
+  heroArt: { minWidth: 72, alignItems: 'center', justifyContent: 'center' },
   statRow: { flexDirection: 'row', gap: 10, flexWrap: 'wrap' },
   statCard: {
     minWidth: 90,
@@ -328,15 +395,15 @@ const styles = StyleSheet.create({
   statLabel: { fontFamily: typography.fontFamily.medium, fontSize: typography.fontSize.sm, color: colors.textMuted },
   actionTile: {
     minWidth: 108,
-    minHeight: 104,
+    minHeight: 128,
     borderRadius: 24,
     borderWidth: 1,
     padding: 14,
     gap: 10,
   },
-  actionIcon: { width: 42, height: 42, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
-  actionLabel: { fontFamily: typography.fontFamily.semiBold, fontSize: typography.fontSize.base, color: colors.text },
-  actionHint: { fontFamily: typography.fontFamily.medium, fontSize: typography.fontSize.sm, color: colors.textMuted },
+  actionIcon: { width: 50, height: 50, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
+  actionLabel: { fontFamily: typography.fontFamily.bold, fontSize: typography.fontSize.base, color: colors.text },
+  actionHint: { fontFamily: typography.fontFamily.medium, fontSize: typography.fontSize.xs, color: colors.textMuted },
   section: { gap: 14 },
   sectionTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', gap: 12 },
   sectionEyebrow: {
@@ -349,6 +416,9 @@ const styles = StyleSheet.create({
   },
   sectionTitle: { fontFamily: typography.fontFamily.bold, fontSize: typography.fontSize.xl, color: colors.text },
   chip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
     borderRadius: 999,
     paddingHorizontal: 14,
     minHeight: 48,
@@ -388,7 +458,8 @@ const styles = StyleSheet.create({
   cardOverlay: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(17,17,17,0.18)' },
   cardBadge: { alignSelf: 'flex-start', margin: 8, paddingHorizontal: 9, paddingVertical: 5, borderRadius: 999, backgroundColor: 'rgba(255,255,255,0.88)' },
   cardBadgeText: { fontFamily: typography.fontFamily.semiBold, fontSize: 10, color: colors.text },
-  cardThumbFallback: { width: 78, height: 78, borderRadius: 20, backgroundColor: colors.cardHover },
+  cardPictogram: { position: 'absolute', right: 6, bottom: 6, borderRadius: 999, backgroundColor: 'rgba(255,255,255,0.88)' },
+  cardThumbFallback: { width: 78, height: 78, borderRadius: 20, backgroundColor: colors.cardHover, alignItems: 'center', justifyContent: 'center' },
   visualCardBody: { flex: 1, gap: 4 },
   visualCardTitle: { fontFamily: typography.fontFamily.semiBold, fontSize: typography.fontSize.base, color: colors.text },
   visualCardSubtitle: { fontFamily: typography.fontFamily.medium, fontSize: typography.fontSize.sm, color: colors.orange },
@@ -396,4 +467,24 @@ const styles = StyleSheet.create({
   progressTrack: { height: 8, borderRadius: 999, backgroundColor: colors.cardHover, overflow: 'hidden' },
   progressFill: { height: '100%', borderRadius: 999 },
   inlineScrollContent: { gap: 8, paddingRight: 8 },
+  primaryAction: {
+    minHeight: 64,
+    borderRadius: 22,
+    borderWidth: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 12,
+    ...shadow({ color: '#000', opacity: 0.14, radius: 16, offset: { width: 0, height: 8 }, elevation: 6 }),
+  },
+  primaryActionPressed: { transform: [{ scale: 0.98 }], opacity: 0.94 },
+  primaryActionDisabled: { opacity: 0.48 },
+  primaryActionIcon: { width: 48, height: 48, borderRadius: 18, backgroundColor: 'rgba(255,255,255,0.78)', alignItems: 'center', justifyContent: 'center' },
+  primaryActionText: { fontFamily: typography.fontFamily.bold, fontSize: typography.fontSize.lg },
+  metaPill: { flex: 1, minWidth: 142, minHeight: 68, flexDirection: 'row', alignItems: 'center', gap: 9, padding: 10, borderRadius: 20, backgroundColor: colors.cardStrong, borderWidth: 1, borderColor: colors.border },
+  metaPillCopy: { flex: 1, gap: 1 },
+  metaPillLabel: { fontFamily: typography.fontFamily.medium, fontSize: typography.fontSize.xs, color: colors.textMuted },
+  metaPillValue: { fontFamily: typography.fontFamily.semiBold, fontSize: typography.fontSize.sm, color: colors.text },
 });

@@ -6,11 +6,13 @@ import { FALLBACK_TICKETS, listTickets, type BackendTicket } from '../../src/bac
 import { useAuth } from '../../src/auth';
 import { useLiveRefresh } from '../../src/live-refresh';
 import { buildTicketDigest } from '../../src/app-redesign';
-import { CalendarIcon, MapIcon, QrIcon, TicketIcon } from '../../src/icons';
+import { TicketIcon } from '../../src/icons';
 import { colors } from '../../src/theme/colors';
 import { typography } from '../../src/theme/typography';
-import { HeroPanel, LivedBackground, ScreenHeader, SectionBlock, StatRow, VisualCard } from '../../src/ui/lived-in';
+import { HeroPanel, LivedBackground, PrimaryAction, ScreenHeader, SectionBlock, StatRow, VisualCard } from '../../src/ui/lived-in';
 import { usePhoneLayout } from '../../src/ui/responsive';
+import { Pictogram, StatusSeal, TicketStubArt, VisualState } from '../../src/ui/pictograms';
+import { getTicketVisual } from '../../src/ui/visual-language';
 
 export default function TicketsScreen() {
   const { token } = useAuth();
@@ -36,14 +38,14 @@ export default function TicketsScreen() {
         <ScreenHeader eyebrow="Billets" title="Mes QR" />
 
         <HeroPanel
-          eyebrow={featured ? (featured.status === 'valid' ? 'Pret' : 'Archive') : 'Vide'}
+          eyebrow={featured ? getTicketVisual(featured.status).label : undefined}
           title={featured?.event.title ?? 'Aucun billet'}
-          subtitle={featured ? `${featured.event.location} • ${featured.event.date}` : 'Vos billets apparaitront ici'}
-          art={<QrIcon size={36} color={colors.orange} />}
+          subtitle={featured ? `${featured.event.location} • ${featured.event.date}` : undefined}
+          art={<TicketStubArt tone={featured?.status === 'valid' ? 'green' : 'ink'} size={94} />}
         >
           <StatRow items={digest.stats} />
           {featured ? (
-            <Pressable style={styles.heroPass} onPress={() => router.push(`/ticket/${featured.id}`)}>
+            <Pressable accessibilityRole="button" accessibilityLabel={`Ouvrir le billet ${featured.event.title}`} style={styles.heroPass} onPress={() => router.push(`/ticket/${featured.id}`)}>
               <ImageBackground source={{ uri: featured.event.imageUrl }} style={styles.heroPassImage} imageStyle={styles.heroPassInner}>
                 <View style={styles.heroPassShade} />
                 <View style={styles.heroPassTop}>
@@ -56,7 +58,8 @@ export default function TicketsScreen() {
                 <Text style={styles.heroPassTitle}>{featured.event.title}</Text>
               </ImageBackground>
             </Pressable>
-          ) : null}
+          ) : <VisualState art={<Pictogram pictogram="ticket" tone="blue" size={96} />} title="Pas encore de billet" action={<PrimaryAction label="Trouver une sortie" pictogram="search" onPress={() => router.push('/(tabs)/search')} />} />}
+          {featured ? <PrimaryAction label="Ouvrir le QR" pictogram="scan" tone="green" onPress={() => router.push(`/ticket/${featured.id}`)} /> : null}
         </HeroPanel>
 
         <SectionBlock eyebrow="Actifs" title={`${digest.active.length} prets`}>
@@ -70,12 +73,7 @@ export default function TicketsScreen() {
                 imageUrl={ticket.event.imageUrl}
                 badge={ticket.code}
                 onPress={() => router.push(`/ticket/${ticket.id}`)}
-                right={
-                  <View style={styles.sideMeta}>
-                    <CalendarIcon size={14} color={colors.orange} />
-                    <MapIcon size={14} color={colors.orange} />
-                  </View>
-                }
+                right={<StatusSeal pictogram={getTicketVisual(ticket.status).key} tone={getTicketVisual(ticket.status).tone} label={getTicketVisual(ticket.status).label} hint={getTicketVisual(ticket.status).hint} size={48} />}
               />
             ))}
           </View>
@@ -87,11 +85,12 @@ export default function TicketsScreen() {
               <VisualCard
                 key={ticket.id}
                 title={ticket.event.title}
-                subtitle={ticket.status === 'used' ? 'Passe' : 'Annule'}
+                subtitle={getTicketVisual(ticket.status).label}
                 meta={`${ticket.event.location} • ${ticket.event.date}`}
                 imageUrl={ticket.event.imageUrl}
                 badge={ticket.code}
                 onPress={() => router.push(`/ticket/${ticket.id}`)}
+                right={<StatusSeal pictogram={getTicketVisual(ticket.status).key} tone={getTicketVisual(ticket.status).tone} label={getTicketVisual(ticket.status).label} hint={getTicketVisual(ticket.status).hint} size={44} />}
               />
             ))}
           </View>
@@ -115,5 +114,4 @@ const styles = StyleSheet.create({
   codePillText: { fontFamily: typography.fontFamily.semiBold, fontSize: typography.fontSize.sm, color: colors.ivory },
   heroPassTitle: { fontFamily: typography.fontFamily.bold, fontSize: typography.fontSize.xl, color: colors.ivory },
   stack: { gap: 12 },
-  sideMeta: { gap: 8, paddingRight: 4 },
 });

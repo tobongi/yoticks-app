@@ -42,7 +42,7 @@ export type EventTier = {
   perks: string[];
 };
 
-export type PaymentMethodKey = 'apple_pay' | 'google_pay' | 'paypal' | 'card';
+export type PaymentMethodKey = 'apple_pay' | 'google_pay' | 'paypal' | 'card' | 'mbiyopay_mobile_money';
 
 export type MerchantAccountStatus = 'needs_info' | 'ready';
 
@@ -69,6 +69,7 @@ export type CheckoutSession = {
   tier: string;
   paymentMethod: PaymentMethodKey;
   amount: number;
+  quantity: number;
   status: CheckoutSessionStatus;
   createdAt: string;
 };

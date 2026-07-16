@@ -7,6 +7,8 @@ import { useAuth } from '../../src/auth';
 import { colors } from '../../src/theme/colors';
 import { organizerColors } from '../../src/theme/organizer';
 import { typography } from '../../src/theme/typography';
+import { LivedBackground } from '../../src/ui/lived-in';
+import { StatusSeal } from '../../src/ui/pictograms';
 
 type MerchantFormState = Record<BackendMerchantField['key'], string>;
 
@@ -108,14 +110,14 @@ export default function OrganizerPayouts() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
+      <LivedBackground />
       <ScrollView style={styles.container} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <Text style={styles.kicker}>{providerName}</Text>
         <Text style={styles.title}>{heading}</Text>
-        <Text style={styles.copy}>
-          Cette etape est celle que la passerelle de paiement attend avant d autoriser Apple Pay, Google Pay, PayPal ou la carte.
-        </Text>
+        <Text style={styles.copy}>Complète les cases pour recevoir l’argent.</Text>
 
         <View style={styles.statusCard}>
+          <StatusSeal pictogram={status === 'ready' ? 'check' : 'blocked'} tone={status === 'ready' ? 'green' : 'red'} label={status === 'ready' ? 'PRÊT' : 'À COMPLÉTER'} size={76} />
           <Text style={styles.statusLabel}>Statut</Text>
           <Text style={styles.statusValue}>{status === 'ready' ? 'Pret pour l encaissement' : 'Informations manquantes'}</Text>
           {sessionId ? <Text style={styles.statusHint}>Session source: {sessionId}</Text> : null}
@@ -145,7 +147,7 @@ export default function OrganizerPayouts() {
           </View>
         ) : null}
 
-        <Pressable
+        <Pressable accessibilityRole="button" accessibilityLabel="Enregistrer les informations de paiement" accessibilityState={{ disabled: !canSave || busy, busy }}
           style={[styles.primaryButton, (!canSave || busy) && styles.primaryButtonDisabled]}
           disabled={!canSave || busy}
           onPress={handleSave}
@@ -153,7 +155,7 @@ export default function OrganizerPayouts() {
           <Text style={styles.primaryButtonText}>{busy ? 'Enregistrement...' : 'Enregistrer le compte marchand'}</Text>
         </Pressable>
 
-        <Pressable style={styles.backButton} onPress={() => router.back()}>
+        <Pressable accessibilityRole="button" accessibilityLabel="Retour" style={styles.backButton} onPress={() => router.back()}>
           <Text style={styles.backText}>Retour</Text>
         </Pressable>
       </ScrollView>

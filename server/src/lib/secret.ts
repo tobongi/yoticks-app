@@ -1,1 +1,7 @@
-export const JWT_SECRET = process.env.JWT_SECRET || 'yoticks-dev-secret-change-me';
+const configuredSecret = process.env.JWT_SECRET;
+
+if (process.env.NODE_ENV === 'production' && (!configuredSecret || configuredSecret.length < 32)) {
+  throw new Error('JWT_SECRET must contain at least 32 characters in production.');
+}
+
+export const JWT_SECRET = configuredSecret || 'yoticks-dev-secret-change-me';

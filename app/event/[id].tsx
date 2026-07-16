@@ -5,12 +5,14 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { FALLBACK_EVENTS, getEvent, listEvents, type BackendEvent } from '../../src/backend';
 import { buildEventDetailModel } from '../../src/event-detail';
 import { useLiveRefresh } from '../../src/live-refresh';
-import { ArrowLeftIcon, CalendarIcon, MapIcon, SparkIcon, TicketIcon } from '../../src/icons';
+import { ArrowLeftIcon, CalendarIcon, MapIcon } from '../../src/icons';
 import { SavedEventButton } from '../../src/saved-event-button';
 import { colors } from '../../src/theme/colors';
 import { typography } from '../../src/theme/typography';
-import { HeroPanel, LivedBackground, ProgressBar, SectionBlock, VisualCard } from '../../src/ui/lived-in';
+import { HeroPanel, LivedBackground, MetaPill, PrimaryAction, ProgressBar, SectionBlock, VisualCard } from '../../src/ui/lived-in';
 import { usePhoneLayout } from '../../src/ui/responsive';
+import { Pictogram } from '../../src/ui/pictograms';
+import { getCategoryVisual, type PictogramKey } from '../../src/ui/visual-language';
 
 export default function EventDetailScreen() {
   const { id } = useLocalSearchParams<{ id?: string }>();
@@ -35,6 +37,7 @@ export default function EventDetailScreen() {
   const current = event ?? (typeof id === 'string' ? FALLBACK_EVENTS.find((item) => item.id === id) ?? FALLBACK_EVENTS[0] : FALLBACK_EVENTS[0]);
   const model = useMemo(() => buildEventDetailModel(current, allEvents), [allEvents, current]);
   const firstTier = current.tiers?.[0];
+  const categoryVisual = getCategoryVisual(current.category);
   const scheduleItems = current.lineup?.length
     ? current.lineup.map((item) => ({ time: item.time, title: item.title, meta: item.stage }))
     : model.timeline.map((item) => ({ time: item.time, title: item.title, meta: item.description }));
@@ -72,24 +75,14 @@ export default function EventDetailScreen() {
           </View>
         </ImageBackground>
 
-        <HeroPanel eyebrow="Pourquoi y aller" title={model.subtitle} subtitle={current.organizer} art={<SparkIcon size={34} color={colors.orange} />}>
-          <Text style={styles.description}>{current.description}</Text>
-          <View style={styles.ctaRow}>
-            <Pressable style={styles.primaryButton} onPress={() => router.push({ pathname: '/reserver/[id]', params: { id: current.id } })}>
-              <TicketIcon size={16} color={colors.black} />
-              <Text style={styles.primaryButtonText}>{current.price === 'Gratuit' ? 'Prendre' : 'Reserver'}</Text>
-            </Pressable>
-          </View>
+        <HeroPanel title={categoryVisual.label} subtitle={current.organizer} tone={categoryVisual.tone} art={<Pictogram pictogram={categoryVisual.key} tone={categoryVisual.tone} size={76} />}>
+          <Text style={styles.description} numberOfLines={3}>{current.description}</Text>
+          <PrimaryAction label={current.price === 'Gratuit' ? 'Prendre le billet' : 'Réserver'} pictogram="ticket" onPress={() => router.push({ pathname: '/reserver/[id]', params: { id: current.id } })} />
         </HeroPanel>
 
         <SectionBlock eyebrow="Infos" title="Lecture rapide">
           <View style={styles.factGrid}>
-            {model.facts.slice(0, 4).map((fact) => (
-              <View key={fact.label} style={[styles.factCard, { width: layout.twoUpWidth }]}>
-                <Text style={styles.factValue}>{fact.value}</Text>
-                <Text style={styles.factLabel}>{fact.label}</Text>
-              </View>
-            ))}
+            {model.facts.slice(0, 4).map((fact, index) => <MetaPill key={fact.label} pictogram={(['ticket', 'map', 'people', 'history'] as PictogramKey[])[index] ?? 'ticket'} tone={index === 1 ? 'yellow' : index === 2 ? 'blue' : 'orange'} label={fact.label} value={fact.value} />)}
           </View>
         </SectionBlock>
 
@@ -151,7 +144,7 @@ export default function EventDetailScreen() {
           <Text style={styles.bottomMeta}>{current.location}</Text>
           <Text style={styles.bottomTitle}>{current.price}</Text>
         </View>
-        <Pressable style={[styles.bottomButton, layout.isCompact && styles.bottomButtonCompact]} onPress={() => router.push({ pathname: '/reserver/[id]', params: { id: current.id } })}>
+        <Pressable accessibilityRole="button" accessibilityLabel={`Réserver ${current.title}`} style={[styles.bottomButton, layout.isCompact && styles.bottomButtonCompact]} onPress={() => router.push({ pathname: '/reserver/[id]', params: { id: current.id } })}>
           <Text style={styles.bottomButtonText}>Y aller</Text>
         </Pressable>
       </View>
@@ -176,13 +169,7 @@ const styles = StyleSheet.create({
   heroMetaChip: { flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 999, backgroundColor: 'rgba(17,17,17,0.3)', paddingHorizontal: 10, paddingVertical: 7 },
   heroMetaText: { fontFamily: typography.fontFamily.medium, fontSize: typography.fontSize.sm, color: colors.ivory },
   description: { fontFamily: typography.fontFamily.regular, fontSize: typography.fontSize.base, lineHeight: 23, color: colors.textSecondary },
-  ctaRow: { flexDirection: 'row' },
-  primaryButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, flex: 1, borderRadius: 18, backgroundColor: colors.orange, paddingVertical: 14 },
-  primaryButtonText: { fontFamily: typography.fontFamily.semiBold, fontSize: typography.fontSize.base, color: colors.black },
   factGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-  factCard: { borderRadius: 22, padding: 14, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.card },
-  factValue: { fontFamily: typography.fontFamily.bold, fontSize: typography.fontSize.lg, color: colors.text },
-  factLabel: { fontFamily: typography.fontFamily.medium, fontSize: typography.fontSize.sm, color: colors.textMuted },
   stack: { gap: 12 },
   tierCard: { borderRadius: 22, padding: 16, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border, gap: 10 },
   tierTop: { flexDirection: 'row', justifyContent: 'space-between', gap: 10 },

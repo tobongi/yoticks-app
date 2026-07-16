@@ -7,11 +7,14 @@ import {
   type ProviderUser,
 } from './provider-users';
 
-import Constants from 'expo-constants';
+import { resolveApiBaseUrl } from './api-config';
+import type { MobileMoneyCountryOption } from './mobile-money-checkout';
 
-const debuggerHost = Constants.expoConfig?.hostUri;
-const localhost = debuggerHost ? debuggerHost.split(':')[0] : '127.0.0.1';
-export const API_BASE_URL = `http://${localhost}:4000/api`;
+export const API_BASE_URL = resolveApiBaseUrl({
+  configuredUrl: process.env.EXPO_PUBLIC_API_URL,
+  debuggerHost: undefined,
+  isDev: typeof __DEV__ !== 'undefined' ? __DEV__ : process.env.NODE_ENV !== 'production',
+});
 
 export type BackendEvent = {
   id: string;
@@ -89,6 +92,8 @@ export type BackendTicket = {
   status: 'valid' | 'used' | 'cancelled';
   holderName: string;
   gate: string | null;
+  tierKey?: string;
+  pricePaid?: number;
 };
 
 export type BackendSavedEvent = {
@@ -156,21 +161,21 @@ export type BackendNotification = {
 
 export type BackendOrganizerDashboard = {
   stats: BackendOrganizerDashboardStats;
-  timeline: Array<{ label: string; sales: number }>;
-  topCities: Array<{ city: string; tickets: number }>;
+  timeline: { label: string; sales: number }[];
+  topCities: { city: string; tickets: number }[];
   funnel: {
     views: number;
     checkouts: number;
     purchases: number;
     dropOffRate: number;
   };
-  eventPerformance: Array<{
+  eventPerformance: {
     eventId: string;
     published: boolean;
     grossSales: number;
     ticketsSold: number;
     waitlistCount: number;
-  }>;
+  }[];
 };
 
 export type BackendHomeFeed = {
@@ -178,14 +183,34 @@ export type BackendHomeFeed = {
   upcomingEvents: BackendEvent[];
   categories: string[];
   trendingEvents: BackendEvent[];
-  recommendedEvents: Array<BackendEvent & { recommendationReason?: string }>;
-  becauseYouLiked: Array<BackendEvent & { recommendationReason?: string }>;
+  recommendedEvents: (BackendEvent & { recommendationReason?: string })[];
+  becauseYouLiked: (BackendEvent & { recommendationReason?: string })[];
   recentSearches: string[];
   followedOrganizerEvents: BackendEvent[];
   nearbyEvents: BackendEvent[];
 };
 
-export type BackendPaymentMethodKey = 'apple_pay' | 'google_pay' | 'paypal' | 'card';
+export type BackendPaymentMethodKey = 'apple_pay' | 'google_pay' | 'paypal' | 'card' | 'mbiyopay_mobile_money';
+
+export type BackendMobileMoneyTransaction = {
+  id: string;
+  checkoutSessionId: string;
+  status: 'pending' | 'successful' | 'failed' | 'cancelled';
+  providerTransactionId: string | null;
+  instructions: string | null;
+  authMode: 'confirm' | 'pin' | null;
+  redirectUrl: string | null;
+  amount: number;
+  providerFee: number | null;
+  chargedAmount: number | null;
+  providerStatus: string | null;
+  network: string;
+  countryCode: string;
+  currency: string;
+  createdAt: string;
+  reconciliationCheckedAt: string | null;
+  reservationIssuedAt: string | null;
+};
 
 export type BackendMerchantField = {
   key: 'businessName' | 'supportEmail' | 'country' | 'city' | 'phoneNumber' | 'payoutDetails';
@@ -211,6 +236,7 @@ export type BackendCheckoutSession = {
   tier: string;
   paymentMethod: BackendPaymentMethodKey;
   amount: number;
+  quantity: number;
   amountLabel: string;
   status: 'requires_merchant_setup' | 'ready_for_payment';
   createdAt: string;
@@ -233,7 +259,7 @@ export type BackendUpdateEventInput = {
   galleryImageUrls?: string[];
   venueMapUrl?: string | null;
   lineup?: BackendEventLineupItem[];
-  tiers?: Array<{
+  tiers?: {
     key: string;
     name: string;
     price: string;
@@ -241,14 +267,14 @@ export type BackendUpdateEventInput = {
     maxPerOrder: number;
     waitlistEnabled: boolean;
     perks: string[];
-  }>;
-  promoCodes?: Array<{
+  }[];
+  promoCodes?: {
     code: string;
     discountType: 'percent' | 'amount';
     discountValue: number;
     maxUses: number;
     tierKey?: string | null;
-  }>;
+  }[];
 };
 
 export type BackendCreateEventInput = {
@@ -265,7 +291,7 @@ export type BackendCreateEventInput = {
   galleryImageUrls?: string[];
   venueMapUrl?: string | null;
   lineup?: BackendEventLineupItem[];
-  tiers?: Array<{
+  tiers?: {
     key: string;
     name: string;
     price: string;
@@ -273,14 +299,14 @@ export type BackendCreateEventInput = {
     maxPerOrder: number;
     waitlistEnabled: boolean;
     perks: string[];
-  }>;
-  promoCodes?: Array<{
+  }[];
+  promoCodes?: {
     code: string;
     discountType: 'percent' | 'amount';
     discountValue: number;
     maxUses: number;
     tierKey?: string | null;
-  }>;
+  }[];
 };
 
 export type BackendUser = {
@@ -310,6 +336,18 @@ export type BackendUpdateTicketInput = {
 export type BackendOrganizerTicketScanResult = {
   outcome: 'checked_in' | 'already_used' | 'cancelled' | 'not_found';
   ticket: BackendTicket | null;
+  scan?: BackendTicketScanAudit;
+};
+
+export type BackendTicketScanAudit = {
+  id: string;
+  scannedAt: string;
+  gate: string;
+  scannerId: string;
+  scannerName: string;
+  scannerRole: string;
+  source: 'qr' | 'manual';
+  outcome: 'checked_in' | 'already_used' | 'cancelled' | 'not_found';
 };
 
 export type BackendProviderUser = ProviderUser;
@@ -764,6 +802,7 @@ export async function scanOrganizerTicket(
   token: string | undefined,
   code: string,
   gate?: string,
+  source: 'qr' | 'manual' = 'qr',
 ): Promise<BackendOrganizerTicketScanResult | null> {
   if (!token) {
     const ticket = FALLBACK_TICKETS.find((entry) => entry.code === code.trim()) ?? null;
@@ -793,7 +832,7 @@ export async function scanOrganizerTicket(
         'Content-Type': 'application/json',
         Authorization: `Bearer ${token}`,
       },
-      body: JSON.stringify({ code, gate }),
+      body: JSON.stringify({ code, gate, source }),
     });
 
     const payload = (await response.json().catch(() => null)) as { result?: BackendOrganizerTicketScanResult } | null;
@@ -1257,6 +1296,61 @@ export async function getCheckoutSession(sessionId: string, token?: string): Pro
   return payload?.session ?? null;
 }
 
+export async function initiateMobileMoneyPayment(
+  input: { checkoutSessionId: string; network: string; phoneNumber: string; countryCode: string; currency: string; omOtp?: string },
+  token?: string,
+): Promise<BackendMobileMoneyTransaction | null> {
+  if (!token) return null;
+  const payload = await requestJsonOrThrow<{ transaction: BackendMobileMoneyTransaction }>(
+    '/payments/mobile-money/initiate',
+    { method: 'POST', body: JSON.stringify(input) },
+    token,
+  );
+  return payload?.transaction ?? null;
+}
+
+export async function getMobileMoneyTransaction(id: string, token?: string): Promise<BackendMobileMoneyTransaction | null> {
+  if (!token) return null;
+  const payload = await requestJson<{ transaction: BackendMobileMoneyTransaction }>(`/payments/mobile-money/${id}`, {}, token);
+  return payload?.transaction ?? null;
+}
+
+export async function getMobileMoneyOptions(token?: string): Promise<MobileMoneyCountryOption[]> {
+  if (!token) return [];
+  const payload = await requestJsonOrThrow<{ countries: MobileMoneyCountryOption[] }>(
+    '/payments/mobile-money/options',
+    {},
+    token,
+  );
+  return payload.countries;
+}
+
+export async function getLatestMobileMoneyTransactionForCheckout(checkoutSessionId: string, token?: string): Promise<BackendMobileMoneyTransaction | null> {
+  if (!token) return null;
+  const payload = await requestJsonOrThrow<{ transaction: BackendMobileMoneyTransaction | null }>(
+    `/payments/mobile-money/checkout/${checkoutSessionId}`,
+    {},
+    token,
+  );
+  return payload.transaction;
+}
+
+export async function refreshMobileMoneyTransaction(id: string, token?: string): Promise<BackendMobileMoneyTransaction | null> {
+  if (!token) return null;
+  const payload = await requestJsonOrThrow<{ transaction: BackendMobileMoneyTransaction }>(`/payments/mobile-money/${id}/refresh`, {}, token);
+  return payload?.transaction ?? null;
+}
+
+export async function finalizeMobileMoneyPayment(id: string, otp: string, token?: string): Promise<BackendMobileMoneyTransaction | null> {
+  if (!token) return null;
+  const payload = await requestJsonOrThrow<{ transaction: BackendMobileMoneyTransaction }>(
+    `/payments/mobile-money/${id}/finalize`,
+    { method: 'POST', body: JSON.stringify({ otp }) },
+    token,
+  );
+  return payload?.transaction ?? null;
+}
+
 export async function getMerchantAccount(
   organizerId: string,
   paymentMethod: BackendPaymentMethodKey,
@@ -1296,9 +1390,9 @@ export async function updateMerchantAccount(
 }
 
 export async function getMe(token?: string): Promise<BackendUser | null> {
-  if (!token) return FALLBACK_USER;
+  if (!token) return null;
   const payload = await requestJson<{ user: BackendUser }>('/auth/me', {}, token);
-  return payload?.user ?? FALLBACK_USER;
+  return payload?.user ?? null;
 }
 
 export async function getProfileSummary(token?: string): Promise<BackendProfileSummary> {
@@ -1359,16 +1453,36 @@ export async function updateProfile(
   return payload?.user ?? null;
 }
 
-export async function resetPassword(email: string, password: string): Promise<boolean> {
+export async function requestPasswordReset(email: string): Promise<boolean> {
   const payload = await requestJsonOrThrow<{ ok: boolean }>(
-    '/auth/reset-password',
+    '/auth/password-reset/request',
     {
       method: 'POST',
-      body: JSON.stringify({ email, password }),
+      body: JSON.stringify({ email }),
     },
   );
 
   return payload?.ok === true;
+}
+
+export async function confirmPasswordReset(token: string, password: string): Promise<boolean> {
+  const payload = await requestJsonOrThrow<{ ok: boolean }>(
+    '/auth/password-reset/confirm',
+    { method: 'POST', body: JSON.stringify({ token, password }) },
+  );
+  return payload?.ok === true;
+}
+
+export async function deleteAccount(password: string, token: string): Promise<void> {
+  const response = await fetch(`${API_BASE_URL}/auth/account`, {
+    method: 'DELETE',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ password }),
+  });
+  if (response.ok) return;
+
+  const payload = (await response.json().catch(() => null)) as { error?: string } | null;
+  throw new Error(payload?.error?.trim() || 'Suppression impossible');
 }
 
 export async function login(email: string, password: string): Promise<{ token: string; user: BackendUser } | null> {

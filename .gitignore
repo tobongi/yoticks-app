@@ -6,6 +6,7 @@ node_modules/
 # Expo
 .expo/
 dist/
+dist-release/
 web-build/
 expo-env.d.ts
 
@@ -25,6 +26,12 @@ expo-env.d.ts
 npm-debug.*
 yarn-debug.*
 yarn-error.*
+.codex/*.log
+
+# local reference material and generated databases
+fer/
+/prisma/*.db*
+/server/prisma/*test.db*
 
 # macOS
 .DS_Store

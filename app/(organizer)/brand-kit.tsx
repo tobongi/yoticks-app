@@ -4,24 +4,26 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors } from '../../src/theme/colors';
 import { organizerColors } from '../../src/theme/organizer';
 import { typography } from '../../src/theme/typography';
+import { LivedBackground } from '../../src/ui/lived-in';
+import { Pictogram, TicketStubArt } from '../../src/ui/pictograms';
 
 export default function OrganizerBrandKit() {
   return (
     <SafeAreaView style={styles.safeArea}>
+      <LivedBackground />
       <ScrollView style={styles.container} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <Text style={styles.kicker}>Brand kit</Text>
-        <Text style={styles.title}>Your organizer identity, color, and event voice.</Text>
-        <Text style={styles.copy}>
-          This page is where the organizer brand setup will live: logo, colors, copy tone, and assets for event pages.
-        </Text>
+        <Text style={styles.kicker}>MON IMAGE</Text>
+        <Text style={styles.title}>YoTicks Organizer</Text>
+        <View style={styles.artRow}><Pictogram pictogram="art" size={94} /><TicketStubArt tone="blue" size={120} /></View>
 
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>Coming from</Text>
-          <Text style={styles.cardValue}>YoTicks organizer</Text>
+          <Text style={styles.cardTitle}>COULEURS</Text>
+          <View style={styles.swatches}><View style={[styles.swatch, { backgroundColor: colors.orange }]} /><View style={[styles.swatch, { backgroundColor: colors.yellow }]} /><View style={[styles.swatch, { backgroundColor: colors.green }]} /><View style={[styles.swatch, { backgroundColor: colors.blue }]} /></View>
+          <Text style={styles.cardValue}>Chaud • vivant • facile à voir</Text>
         </View>
 
-        <Pressable style={styles.backButton} onPress={() => router.back()}>
-          <Text style={styles.backText}>Back to profile</Text>
+        <Pressable accessibilityRole="button" accessibilityLabel="Retour" style={styles.backButton} onPress={() => router.back()}>
+          <Text style={styles.backText}>Retour</Text>
         </Pressable>
       </ScrollView>
     </SafeAreaView>
@@ -41,6 +43,7 @@ const styles = StyleSheet.create({
   },
   title: { fontFamily: typography.fontFamily.bold, fontSize: 28, lineHeight: 34, color: organizerColors.text },
   copy: { fontFamily: typography.fontFamily.regular, fontSize: typography.fontSize.base, lineHeight: 22, color: organizerColors.textSecondary },
+  artRow: { minHeight: 150, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-around', borderRadius: 28, backgroundColor: organizerColors.surface, borderWidth: 1, borderColor: organizerColors.border },
   card: {
     padding: 16,
     borderRadius: 20,
@@ -57,6 +60,8 @@ const styles = StyleSheet.create({
     letterSpacing: 1.1,
   },
   cardValue: { fontFamily: typography.fontFamily.semiBold, fontSize: typography.fontSize.sm, color: organizerColors.text },
+  swatches: { flexDirection: 'row', gap: 10 },
+  swatch: { flex: 1, height: 58, borderRadius: 18 },
   backButton: {
     alignItems: 'center',
     paddingVertical: 14,

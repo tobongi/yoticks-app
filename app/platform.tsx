@@ -3,7 +3,9 @@ import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors } from '../src/theme/colors';
 import { typography } from '../src/theme/typography';
-import { ArrowLeftIcon, ChevronRightIcon, ClipboardIcon, GlobeIcon, InfoIcon, TicketIcon } from '../src/icons';
+import { ArrowLeftIcon, ChevronRightIcon } from '../src/icons';
+import { LivedBackground } from '../src/ui/lived-in';
+import { Pictogram } from '../src/ui/pictograms';
 
 type LinkCard = {
   key: string;
@@ -115,9 +117,10 @@ export default function PlatformPage() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
+      <LivedBackground />
       <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
         <View style={styles.topBar}>
-          <Pressable style={styles.backPill} onPress={() => router.back()}>
+          <Pressable accessibilityRole="button" accessibilityLabel="Retour" style={styles.backPill} onPress={() => router.back()}>
             <ArrowLeftIcon size={16} color={colors.orange} />
             <Text style={styles.backText}>Retour</Text>
           </Pressable>
@@ -140,7 +143,7 @@ export default function PlatformPage() {
             <Stat label="Ressources" value="3" />
           </View>
 
-          <Pressable style={styles.primaryCta} onPress={() => openExternal(DEMO_SITE)}>
+          <Pressable accessibilityRole="link" accessibilityLabel="Ouvrir la démo principale" style={styles.primaryCta} onPress={() => openExternal(DEMO_SITE)}>
             <Text style={styles.primaryCtaText}>Ouvrir la démo principale</Text>
             <ChevronRightIcon size={16} color={colors.black} />
           </Pressable>
@@ -168,7 +171,7 @@ export default function PlatformPage() {
         <SectionTitle title="Accès démo" subtitle="Les entrées directes vers les parcours utiles." />
         <View style={styles.linkList}>
           {ACCESS_LINKS.map((link) => (
-            <Pressable key={link.key} style={styles.linkCard} onPress={() => openExternal(link.url)}>
+            <Pressable accessibilityRole="link" accessibilityLabel={link.label} key={link.key} style={styles.linkCard} onPress={() => openExternal(link.url)}>
               <View style={styles.linkIconWrap}>{renderIcon(link.icon)}</View>
               <View style={styles.linkBody}>
                 <Text style={styles.linkLabel}>{link.label}</Text>
@@ -182,7 +185,7 @@ export default function PlatformPage() {
         <SectionTitle title="Ressources" subtitle="Matériel de vente et de partage pour accélérer la validation." />
         <View style={styles.resourceGrid}>
           {RESOURCES.map((resource) => (
-            <Pressable key={resource.key} style={styles.resourceCard} onPress={() => openExternal(resource.url)}>
+            <Pressable accessibilityRole="link" accessibilityLabel={resource.label} key={resource.key} style={styles.resourceCard} onPress={() => openExternal(resource.url)}>
               <View style={styles.resourceTopRow}>
                 <View style={styles.linkIconWrap}>{renderIcon(resource.icon)}</View>
                 <ChevronRightIcon size={16} color={colors.textMuted} />
@@ -236,19 +239,19 @@ function SectionTitle({ title, subtitle }: { title: string; subtitle: string }) 
 function renderIcon(icon: LinkCard['icon']) {
   switch (icon) {
     case 'ticket':
-      return <TicketIcon size={18} color={colors.orange} />;
+      return <Pictogram pictogram="ticket" tone="blue" size={42} />;
     case 'clipboard':
-      return <ClipboardIcon size={18} color={colors.orange} />;
+      return <Pictogram pictogram="scan" tone="green" size={42} />;
     case 'info':
-      return <InfoIcon size={18} color={colors.orange} />;
+      return <Pictogram pictogram="help" tone="blue" size={42} />;
     case 'globe':
     default:
-      return <GlobeIcon size={18} color={colors.orange} />;
+      return <Pictogram pictogram="map" tone="yellow" size={42} />;
   }
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: colors.bg },
+  safeArea: { flex: 1, backgroundColor: colors.bgDeep },
   container: { flex: 1, paddingHorizontal: 20, paddingTop: 14 },
   topBar: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18, gap: 12 },
   backPill: {

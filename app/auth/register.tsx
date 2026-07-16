@@ -3,10 +3,11 @@ import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text
 import { router, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../../src/auth';
-import { ArrowLeftIcon, SparkIcon } from '../../src/icons';
+import { ArrowLeftIcon } from '../../src/icons';
 import { colors } from '../../src/theme/colors';
 import { typography } from '../../src/theme/typography';
 import { HeroPanel, LivedBackground } from '../../src/ui/lived-in';
+import { Pictogram } from '../../src/ui/pictograms';
 import { usePhoneLayout } from '../../src/ui/responsive';
 
 export default function Register() {
@@ -42,14 +43,14 @@ export default function Register() {
             <ArrowLeftIcon size={16} color={colors.orange} />
             <Text style={styles.backText}>Retour</Text>
           </Pressable>
-          <HeroPanel eyebrow="Nouveau" title="Creer mon compte" subtitle="Un compte. Tous les billets." art={<SparkIcon size={38} color={colors.orange} />}>
+          <HeroPanel eyebrow="Nouveau" title="Créer mon compte" subtitle="Tes billets au même endroit" art={<Pictogram pictogram="profile" tone="blue" size={78} />}>
             <View style={styles.form}>
               <TextInput style={styles.input} value={name} onChangeText={setName} placeholder="Nom" placeholderTextColor={colors.textMuted} />
               <TextInput style={styles.input} value={email} onChangeText={setEmail} placeholder="Email" placeholderTextColor={colors.textMuted} autoCapitalize="none" keyboardType="email-address" />
               <TextInput style={styles.input} value={phone} onChangeText={setPhone} placeholder="Telephone" placeholderTextColor={colors.textMuted} keyboardType="phone-pad" />
               <TextInput style={styles.input} value={password} onChangeText={setPassword} placeholder="Mot de passe" placeholderTextColor={colors.textMuted} secureTextEntry />
               {!!error ? <Text style={styles.error}>{error}</Text> : null}
-              <Pressable style={styles.primaryButton} onPress={handleRegister} disabled={busy}>
+              <Pressable accessibilityRole="button" accessibilityLabel="Créer mon compte" accessibilityState={{ disabled: busy, busy }} style={styles.primaryButton} onPress={handleRegister} disabled={busy}>
                 <Text style={styles.primaryButtonText}>{busy ? 'Creation...' : 'Creer'}</Text>
               </Pressable>
             </View>

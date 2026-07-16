@@ -6,6 +6,9 @@ import { organizerColors } from '../../src/theme/organizer';
 import { shadow } from '../../src/theme/shadows';
 import { typography } from '../../src/theme/typography';
 import { useAuth } from '../../src/auth';
+import { LivedBackground } from '../../src/ui/lived-in';
+import { Pictogram } from '../../src/ui/pictograms';
+import type { PictogramKey, VisualTone } from '../../src/ui/visual-language';
 
 export default function OrganizerProfile() {
   const { user, signOut } = useAuth();
@@ -20,9 +23,10 @@ export default function OrganizerProfile() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
+      <LivedBackground />
       <ScrollView style={styles.container} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <Text style={styles.kicker}>Organizer account</Text>
-        <Text style={styles.title}>Account, brand, and workflow settings.</Text>
+        <Text style={styles.kicker}>ORGANISATEUR</Text>
+        <Text style={styles.title}>Mon compte</Text>
 
         <View style={styles.profileCard}>
           <View style={styles.avatar}>
@@ -32,38 +36,39 @@ export default function OrganizerProfile() {
             <Text style={styles.name}>{user?.name}</Text>
             <Text style={styles.email}>{user?.email}</Text>
             <View style={styles.rolePill}>
-              <Text style={styles.roleText}>Organizer mode</Text>
+              <Text style={styles.roleText}>MODE ORGANISATEUR</Text>
             </View>
           </View>
         </View>
 
         <View style={styles.actionList}>
-          <Action
-            label="Brand kit"
-            value="YoTicks organizer"
+          <Action pictogram="art" tone="orange"
+            label="Mon image"
+            value="Logo et couleurs"
             onPress={() => router.push('/(organizer)/brand-kit' as never)}
           />
-          <Action label="Payouts" value="Configured" onPress={() => router.push('/(organizer)/payouts' as never)} />
-          <Action label="Support" value="Live line" onPress={() => router.push('/(organizer)/support' as never)} />
+          <Action pictogram="ticket" tone="green" label="Paiements" value="Compte marchand" onPress={() => router.push('/(organizer)/payouts' as never)} />
+          <Action pictogram="help" tone="blue" label="Aide" value="Contacter YoTicks" onPress={() => router.push('/(organizer)/support' as never)} />
         </View>
 
-        <Pressable
+        <Pressable accessibilityRole="button" accessibilityLabel="Se déconnecter"
           style={styles.logout}
           onPress={() => {
             signOut();
             router.replace('/auth/login');
           }}
         >
-          <Text style={styles.logoutText}>Sign out</Text>
+          <Text style={styles.logoutText}>Se déconnecter</Text>
         </Pressable>
       </ScrollView>
     </SafeAreaView>
   );
 }
 
-function Action({ label, value, onPress }: { label: string; value: string; onPress: () => void }) {
+function Action({ pictogram, tone, label, value, onPress }: { pictogram: PictogramKey; tone: VisualTone; label: string; value: string; onPress: () => void }) {
   return (
-    <Pressable style={styles.actionCard} onPress={onPress}>
+    <Pressable accessibilityRole="button" accessibilityLabel={label} style={styles.actionCard} onPress={onPress}>
+      <Pictogram pictogram={pictogram} tone={tone} size={52} />
       <View style={styles.actionCopy}>
         <Text style={styles.actionLabel}>{label}</Text>
         <Text style={styles.actionValue}>{value}</Text>
@@ -134,7 +139,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: organizerColors.border,
   },
-  actionCopy: { gap: 4 },
+  actionCopy: { flex: 1, gap: 4 },
   actionLabel: { fontFamily: typography.fontFamily.medium, fontSize: typography.fontSize.sm, color: organizerColors.text },
   actionValue: {
     fontFamily: typography.fontFamily.regular,

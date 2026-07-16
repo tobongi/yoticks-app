@@ -8,11 +8,13 @@ import { buildHomeDigest } from '../../src/app-redesign';
 import { getOnboardingPreferences, saveOnboardingPreferences, type OnboardingPreferences } from '../../src/onboarding-prefs';
 import { getCityKey } from '../../src/cities';
 import { useLiveRefresh } from '../../src/live-refresh';
-import { CalendarIcon, MapIcon, SearchIcon, SparkIcon, TicketIcon } from '../../src/icons';
+import { CalendarIcon } from '../../src/icons';
 import { SavedEventButton } from '../../src/saved-event-button';
 import { colors } from '../../src/theme/colors';
 import { typography } from '../../src/theme/typography';
-import { ActionTile, Chip, HeroPanel, LivedBackground, ScreenHeader, SectionBlock, StatRow, VisualCard } from '../../src/ui/lived-in';
+import { ActionTile, Chip, HeroPanel, LivedBackground, PrimaryAction, ScreenHeader, SectionBlock, StatRow, VisualCard } from '../../src/ui/lived-in';
+import { Pictogram, TicketStubArt } from '../../src/ui/pictograms';
+import { getCategoryVisual } from '../../src/ui/visual-language';
 import { usePhoneLayout } from '../../src/ui/responsive';
 
 export default function Home() {
@@ -88,23 +90,16 @@ export default function Home() {
           eyebrow="Ce soir"
           title={spotlight?.title ?? 'Sortir sans chercher'}
           subtitle={spotlight ? `${spotlight.location} • ${spotlight.date}` : 'Concerts, talks, sport, food'}
-          art={<SparkIcon size={38} color={colors.orange} />}
+          art={<TicketStubArt size={96} />}
         >
           <StatRow items={digest.stats} />
-          <View style={styles.heroActions}>
-            <Pressable style={styles.primaryButton} onPress={() => spotlight && router.push({ pathname: '/event/[id]', params: { id: spotlight.id } })}>
-              <Text style={styles.primaryButtonText}>Voir</Text>
-            </Pressable>
-            <Pressable style={styles.secondaryButton} onPress={() => router.push('/(tabs)/search')}>
-              <Text style={styles.secondaryButtonText}>Chercher</Text>
-            </Pressable>
-          </View>
+          <PrimaryAction label="Voir le billet" pictogram="ticket" onPress={() => spotlight && router.push({ pathname: '/event/[id]', params: { id: spotlight.id } })} />
         </HeroPanel>
 
         <View style={styles.tileGrid}>
-          <ActionTile icon={<SearchIcon size={20} color={colors.orange} />} label="Trouver" hint="Par lieu" style={{ width: layout.tileWidth }} onPress={() => router.push('/(tabs)/search')} />
-          <ActionTile icon={<TicketIcon size={20} color={colors.green} />} label="Mes QR" hint="Billets" tone="green" style={{ width: layout.tileWidth }} onPress={() => router.push('/(tabs)/tickets')} />
-          <ActionTile icon={<MapIcon size={20} color={colors.black} />} label="Pres de moi" hint={selectedCity ?? 'Toutes villes'} tone="yellow" style={{ width: layout.tileWidth }} onPress={() => router.push('/(tabs)/search')} />
+          <ActionTile icon={<Pictogram pictogram="search" size={46} />} label="Trouver" style={{ width: layout.tileWidth }} onPress={() => router.push('/(tabs)/search')} />
+          <ActionTile icon={<Pictogram pictogram="ticket" tone="blue" size={46} />} label="Mes QR" tone="blue" style={{ width: layout.tileWidth }} onPress={() => router.push('/(tabs)/tickets')} />
+          <ActionTile icon={<Pictogram pictogram="map" tone="yellow" size={46} />} label="Près de moi" hint={selectedCity ?? undefined} tone="yellow" style={{ width: layout.tileWidth }} onPress={() => router.push('/(tabs)/search')} />
         </View>
 
         <SectionBlock eyebrow="Filtres" title="Choix rapides">
@@ -116,6 +111,8 @@ export default function Home() {
                   key={city}
                   label={city}
                   active={active}
+                  pictogram="map"
+                  tone="yellow"
                   onPress={() => {
                     const nextCity = city === 'Tout' ? null : city;
                     setSelectedCity(nextCity);
@@ -126,17 +123,10 @@ export default function Home() {
             })}
           </View>
           <View style={styles.chipWrap}>
-            {categoryOptions.map((category) => (
-              <Chip
-                key={category}
-                label={category === 'all' ? 'Tout' : category}
-                active={selectedCategory === category}
-                onPress={() => {
-                  setSelectedCategory(category);
-                  void persistPrefs(selectedCity, category);
-                }}
-              />
-            ))}
+            {categoryOptions.map((category) => {
+              const visual = getCategoryVisual(category === 'all' ? 'Festival' : category);
+              return <Chip key={category} label={category === 'all' ? 'Tout' : visual.label} pictogram={visual.key} tone={visual.tone} active={selectedCategory === category} onPress={() => { setSelectedCategory(category); void persistPrefs(selectedCity, category); }} />;
+            })}
           </View>
         </SectionBlock>
 
@@ -160,7 +150,7 @@ export default function Home() {
         <SectionBlock eyebrow="Bientot" title="Petite selection">
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.rail}>
             {featured.slice(0, 6).map((event) => (
-              <Pressable key={event.id} style={[styles.poster, { width: layout.featuredPosterWidth }]} onPress={() => router.push({ pathname: '/event/[id]', params: { id: event.id } })}>
+              <Pressable accessibilityRole="button" accessibilityLabel={`Ouvrir ${event.title}`} key={event.id} style={[styles.poster, { width: layout.featuredPosterWidth }]} onPress={() => router.push({ pathname: '/event/[id]', params: { id: event.id } })}>
                 <ImageBackground source={{ uri: event.imageUrl }} style={[styles.posterImage, { height: layout.featuredPosterHeight }]} imageStyle={styles.posterImageInner}>
                   <View style={styles.posterShade} />
                   <Text style={styles.posterCategory}>{event.category}</Text>
@@ -185,11 +175,6 @@ const styles = StyleSheet.create({
   content: { paddingTop: 14 },
   mark: { width: 52, height: 52, borderRadius: 18, backgroundColor: colors.black, alignItems: 'center', justifyContent: 'center' },
   markText: { fontFamily: typography.fontFamily.bold, fontSize: typography.fontSize.sm, color: colors.ivory, letterSpacing: 2.4 },
-  heroActions: { flexDirection: 'row', gap: 10, flexWrap: 'wrap' },
-  primaryButton: { flex: 1, backgroundColor: colors.orange, borderRadius: 18, paddingVertical: 14, alignItems: 'center' },
-  primaryButtonText: { fontFamily: typography.fontFamily.semiBold, fontSize: typography.fontSize.base, color: colors.black },
-  secondaryButton: { minWidth: 116, borderRadius: 18, paddingVertical: 14, alignItems: 'center', backgroundColor: colors.cardStrong, borderWidth: 1, borderColor: colors.borderStrong },
-  secondaryButtonText: { fontFamily: typography.fontFamily.semiBold, fontSize: typography.fontSize.base, color: colors.text },
   tileGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   chipWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   stack: { gap: 12 },

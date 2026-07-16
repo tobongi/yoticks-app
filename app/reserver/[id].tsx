@@ -28,6 +28,7 @@ import {
 import { useLiveRefresh } from '../../src/live-refresh';
 import { buildReservationFlow, PAYMENT_METHODS, type PaymentMethodKey, type ReservationTier } from '../../src/reservation-flow';
 import { scheduleReservationNotifications } from '../../src/notifications';
+import { getCheckoutReadiness } from '../../src/checkout-readiness';
 import { buildRelatedEvents } from '../../src/recommendations';
 import {
   ArrowLeftIcon,
@@ -40,6 +41,9 @@ import {
   UserIcon,
 } from '../../src/icons';
 import { useAuth } from '../../src/auth';
+import { LivedBackground, PrimaryAction } from '../../src/ui/lived-in';
+import { Pictogram, TicketStubArt } from '../../src/ui/pictograms';
+import { getCategoryVisual } from '../../src/ui/visual-language';
 
 type TierKey = string;
 
@@ -254,11 +258,6 @@ function buildFaq(event: BackendEvent): FAQItem[] {
   ];
 }
 
-type RelatedEvent = BackendEvent & {
-  reason: string;
-  score: number;
-};
-
 function SelectorChip({ icon, label, value }: { icon: ReactNode; label: string; value: string }) {
   return (
     <View style={styles.selectorChip}>
@@ -396,7 +395,12 @@ export default function ReserveEventPage() {
   const currentTier = tiers.find((tier) => tier.key === selectedTier) ?? tiers[0];
   const reservationFlow = useMemo(() => buildReservationFlow(current, currentTier), [current, currentTier]);
   const requiresPayment = parsePriceValue(currentTier.price) > 0;
+  const checkoutReadiness = getCheckoutReadiness({
+    amount: parsePriceValue(currentTier.price),
+    paidCheckoutEnabled: process.env.EXPO_PUBLIC_ENABLE_PAID_CHECKOUT === 'true',
+  });
   const reservationTicket = reservationResult?.tickets[0] ?? null;
+  const categoryVisual = getCategoryVisual(current.category);
   const eventDateParts = current.date.split(' ');
   const quickFacts = [
     { label: 'Best for', value: categoryAudience(current) },
@@ -405,7 +409,11 @@ export default function ReserveEventPage() {
   ];
   const planningNotes = [
     `Mobile ticket delivery for ${currentTier.title.toLowerCase()}`,
-    requiresPayment ? `Pay now from ${currentTier.price}` : 'Reserve now and pay nothing today',
+    requiresPayment
+      ? checkoutReadiness.allowed
+        ? `Pay now from ${currentTier.price}`
+        : 'Online payment is not open for this event'
+      : 'Reserve now and pay nothing today',
     `Crowd signal: ${eventMomentum(current)}`,
   ];
   const handleBack = () => {
@@ -457,6 +465,11 @@ export default function ReserveEventPage() {
       return;
     }
 
+    if (!checkoutReadiness.allowed) {
+      Alert.alert('Paiement indisponible', checkoutReadiness.reason);
+      return;
+    }
+
     if (!showReview) {
       setShowReview(true);
       return;
@@ -499,9 +512,10 @@ export default function ReserveEventPage() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
+      <LivedBackground />
       <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
         <View style={styles.topActions}>
-          <Pressable style={styles.backPill} onPress={handleBack}>
+          <Pressable accessibilityRole="button" accessibilityLabel="Retour" style={styles.backPill} onPress={handleBack}>
             <ArrowLeftIcon size={16} color={colors.orange} />
             <Text style={styles.backText}>Retour</Text>
           </Pressable>
@@ -533,7 +547,7 @@ export default function ReserveEventPage() {
           </View>
 
           <Text style={styles.title}>{current.title}</Text>
-          <Text style={styles.subtitle}>{current.description}</Text>
+          <Text style={styles.subtitle} numberOfLines={2}>{current.description}</Text>
 
           <View style={styles.heroGrid}>
             <View style={styles.heroStat}>
@@ -575,6 +589,50 @@ export default function ReserveEventPage() {
           </View>
         </View>
 
+        <View style={styles.visualFlow}>
+          <View style={styles.visualFlowHead}>
+            <Pictogram pictogram={categoryVisual.key} tone={categoryVisual.tone} size={76} />
+            <View style={styles.visualFlowCopy}>
+              <Text style={styles.sectionTitle}>Choisis ton billet</Text>
+              <Text style={styles.visualFlowHint}>{current.date} • {current.location}</Text>
+            </View>
+            <TicketStubArt tone={categoryVisual.tone} size={76} />
+          </View>
+
+          <View style={styles.tierList}>
+            {tiers.map((tier) => {
+              const active = tier.key === selectedTier;
+              return (
+                <Pressable key={tier.key} accessibilityRole="radio" accessibilityState={{ checked: active }} style={[styles.visualTier, active && styles.visualTierActive]} onPress={() => setSelectedTier(tier.key as TierKey)}>
+                  <Pictogram pictogram={active ? 'check' : 'ticket'} tone={active ? 'green' : 'blue'} size={54} />
+                  <View style={styles.visualTierCopy}><Text style={styles.tierTitle}>{tier.title}</Text><Text style={styles.tierPrice}>{tier.price}</Text></View>
+                  <Text style={styles.visualTierStock}>{tier.subtitle.split('·')[0]}</Text>
+                </Pressable>
+              );
+            })}
+          </View>
+
+          <View style={styles.quantityVisual}>
+            <Pictogram pictogram="people" tone="blue" size={58} />
+            <View style={styles.quantityRow}>
+              {[1, 2, 3, 4].map((value) => {
+                const max = current.tiers?.find((tier) => tier.key === selectedTier)?.maxPerOrder ?? 4;
+                const disabled = value > max;
+                return <Pressable key={value} accessibilityRole="radio" accessibilityLabel={`${value} billet${value > 1 ? 's' : ''}`} accessibilityState={{ checked: quantity === value, disabled }} disabled={disabled} style={[styles.quantityChip, quantity === value && styles.quantityChipActive, disabled && styles.quantityChipDisabled]} onPress={() => setQuantity(value)}><Text style={[styles.quantityChipText, quantity === value && styles.quantityChipTextActive]}>{value}</Text></Pressable>;
+              })}
+            </View>
+          </View>
+
+          <TextInput style={styles.promoInput} accessibilityLabel="Code promotionnel" value={promoCode} onChangeText={setPromoCode} placeholder="Code promo" placeholderTextColor={colors.textMuted} autoCapitalize="characters" autoCorrect={false} />
+
+          {quote ? <View style={styles.visualTotal}><Text style={styles.quoteLabel}>TOTAL</Text><Text style={styles.visualTotalValue}>{formatMoney(quote.total)}</Text><Pictogram pictogram={quote.status === 'available' ? 'check' : 'blocked'} tone={quote.status === 'available' ? 'green' : 'red'} size={54} /></View> : null}
+
+          {requiresPayment ? <View style={styles.paymentList}>{PAYMENT_METHODS.map((method) => <PaymentMethodCard key={method.key} active={method.key === selectedPayment} method={method} onPress={() => setSelectedPayment(method.key)} />)}</View> : null}
+
+          <PrimaryAction label={requiresPayment && !checkoutReadiness.allowed ? 'Paiement indisponible' : 'Vérifier'} pictogram={requiresPayment ? 'check' : 'ticket'} tone={requiresPayment && !checkoutReadiness.allowed ? 'red' : 'orange'} disabled={busy} onPress={handleReserve} />
+        </View>
+
+        {false && <>
         <View style={styles.checkoutStepper}>
           <View style={styles.checkoutStepperHeader}>
             <Text style={styles.checkoutStepperEyebrow}>Parcours de paiement</Text>
@@ -627,7 +685,7 @@ export default function ReserveEventPage() {
               const disabled = value > maxPerOrder;
               const active = quantity === value;
               return (
-                <Pressable
+                <Pressable accessibilityRole="button" accessibilityLabel={`${value} billet${value > 1 ? 's' : ''}`} accessibilityState={{ selected: active, disabled }}
                   key={value}
                   style={[styles.quantityChip, active && styles.quantityChipActive, disabled && styles.quantityChipDisabled]}
                   onPress={() => !disabled && setQuantity(value)}
@@ -652,20 +710,20 @@ export default function ReserveEventPage() {
             <View style={styles.quoteCard}>
               <View style={styles.quoteRow}>
                 <Text style={styles.quoteLabel}>Subtotal</Text>
-                <Text style={styles.quoteValue}>{formatMoney(quote.subtotal)}</Text>
+                <Text style={styles.quoteValue}>{formatMoney(quote!.subtotal)}</Text>
               </View>
               <View style={styles.quoteRow}>
                 <Text style={styles.quoteLabel}>Discount</Text>
-                <Text style={styles.quoteValue}>{formatMoney(quote.discount)}</Text>
+                <Text style={styles.quoteValue}>{formatMoney(quote!.discount)}</Text>
               </View>
               <View style={styles.quoteRow}>
                 <Text style={styles.quoteLabel}>Total</Text>
-                <Text style={styles.quoteValue}>{formatMoney(quote.total)}</Text>
+                <Text style={styles.quoteValue}>{formatMoney(quote!.total)}</Text>
               </View>
               <Text style={styles.quoteNote}>
-                {quote.status === 'available'
-                  ? `${quote.remainingAfterPurchase} tickets remain after this order.`
-                  : quote.status === 'waitlist_only'
+                {quote!.status === 'available'
+                  ? `${quote!.remainingAfterPurchase} tickets remain after this order.`
+                  : quote!.status === 'waitlist_only'
                     ? 'This tier is sold out, but waitlist is open.'
                     : 'This tier is sold out right now.'}
               </Text>
@@ -713,7 +771,7 @@ export default function ReserveEventPage() {
             {tiers.map((tier) => {
               const active = tier.key === selectedTier;
               return (
-                <Pressable
+                <Pressable accessibilityRole="button" accessibilityLabel={tier.title} accessibilityState={{ selected: active }}
                   key={tier.key}
                   style={[
                     styles.tierCard,
@@ -906,7 +964,7 @@ export default function ReserveEventPage() {
           <Text style={styles.sectionTitle}>Événements similaires</Text>
           <View style={styles.relatedList}>
             {related.map((item) => (
-              <Pressable
+              <Pressable accessibilityRole="button" accessibilityLabel={`Ouvrir ${item.title}`}
                 key={item.id}
                 style={styles.relatedCard}
                 onPress={() => router.push({ pathname: '/reserver/[id]', params: { id: item.id } })}
@@ -930,6 +988,7 @@ export default function ReserveEventPage() {
             ))}
           </View>
         </View>
+        </>}
 
         <View style={styles.bottomSpacer} />
       </ScrollView>
@@ -956,13 +1015,13 @@ export default function ReserveEventPage() {
             </Text>
 
             <View style={styles.successActions}>
-              <Pressable
+              <Pressable accessibilityRole="button" accessibilityLabel="Voir mon billet"
                 style={[styles.successBtn, { backgroundColor: accent }]}
                 onPress={() => router.push(`/ticket/${reservationTicket.id}`)}
               >
                 <Text style={styles.successBtnText}>Voir mon billet</Text>
               </Pressable>
-              <Pressable style={styles.successGhostBtn} onPress={() => router.replace('/(tabs)')}>
+              <Pressable accessibilityRole="button" accessibilityLabel="Retour aux événements" style={styles.successGhostBtn} onPress={() => router.replace('/(tabs)')}>
                 <Text style={styles.successGhostText}>Retour aux événements</Text>
               </Pressable>
             </View>
@@ -1027,10 +1086,10 @@ export default function ReserveEventPage() {
               ) : null}
             </View>
             <View style={styles.reviewActions}>
-              <Pressable style={styles.reviewSecondaryBtn} onPress={() => setShowReview(false)} disabled={busy}>
+              <Pressable accessibilityRole="button" accessibilityLabel="Retour" accessibilityState={{ disabled: busy }} style={styles.reviewSecondaryBtn} onPress={() => setShowReview(false)} disabled={busy}>
                 <Text style={styles.reviewSecondaryText}>Retour</Text>
               </Pressable>
-              <Pressable
+              <Pressable accessibilityRole="button" accessibilityLabel={reservationFlow.primaryActionLabel} accessibilityState={{ disabled: busy, busy }}
                 style={[styles.reserveBtn, { backgroundColor: accent }, busy && styles.reserveBtnDisabled]}
                 onPress={handleReserve}
                 disabled={busy}
@@ -1049,7 +1108,7 @@ export default function ReserveEventPage() {
               <Text style={styles.stickyPrice}>{quote ? formatMoney(quote.total) : currentTier.price}</Text>
             </View>
 
-            <Pressable
+            <Pressable accessibilityRole="button" accessibilityLabel={token ? checkoutReadiness.allowed ? 'Continuer' : 'Paiement indisponible' : 'Se connecter pour réserver'} accessibilityState={{ disabled: busy, busy }}
               style={[styles.reserveBtn, { backgroundColor: accent }, busy && styles.reserveBtnDisabled]}
               onPress={handleReserve}
               disabled={busy}
@@ -1058,7 +1117,9 @@ export default function ReserveEventPage() {
                 {busy
                   ? 'Chargement...'
                   : token
-                    ? `${currentTier.price} — Continuer`
+                    ? checkoutReadiness.allowed
+                      ? `${currentTier.price} — Continuer`
+                      : 'Paiement indisponible'
                     : 'Se connecter pour réserver'}
               </Text>
             </Pressable>
@@ -1070,7 +1131,18 @@ export default function ReserveEventPage() {
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: colors.bg },
+  safeArea: { flex: 1, backgroundColor: colors.bgDeep },
+  visualFlow: { marginTop: 16, padding: 16, gap: 14, borderRadius: 28, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.borderStrong },
+  visualFlowHead: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  visualFlowCopy: { flex: 1, gap: 3 },
+  visualFlowHint: { fontFamily: typography.fontFamily.medium, fontSize: typography.fontSize.sm, color: colors.textSecondary },
+  visualTier: { minHeight: 78, padding: 10, flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 22, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.cardStrong },
+  visualTierActive: { borderColor: colors.green, backgroundColor: colors.surfaceGreen },
+  visualTierCopy: { flex: 1, gap: 3 },
+  visualTierStock: { maxWidth: 82, fontFamily: typography.fontFamily.medium, fontSize: typography.fontSize.xs, color: colors.textMuted, textAlign: 'right' },
+  quantityVisual: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  visualTotal: { minHeight: 72, flexDirection: 'row', alignItems: 'center', gap: 12, padding: 12, borderRadius: 22, backgroundColor: colors.surfaceGreen, borderWidth: 1, borderColor: colors.green + '44' },
+  visualTotalValue: { flex: 1, fontFamily: typography.fontFamily.bold, fontSize: typography.fontSize.xl, color: colors.text },
   container: { flex: 1, paddingHorizontal: 20, paddingTop: 14 },
   topActions: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18, gap: 12 },
   backPill: {

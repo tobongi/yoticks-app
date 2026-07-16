@@ -32,8 +32,7 @@ function parseList(value: string | undefined): string[] {
 }
 
 const configuredOrigins = parseList(process.env.CORS_ORIGINS);
-const defaultOrigins = [
-  process.env.CLIENT_URL,
+const developmentOrigins = [
   'http://localhost:19006',
   'http://127.0.0.1:19006',
   'http://[::1]:19006',
@@ -45,19 +44,17 @@ const defaultOrigins = [
   'http://127.0.0.1:4173',
   'http://localhost:3000',
   'http://127.0.0.1:3000',
+];
+const defaultOrigins = [
+  process.env.CLIENT_URL,
+  ...(!isProduction ? developmentOrigins : []),
 ].filter((origin): origin is string => Boolean(origin));
 
 const allowedOrigins = new Set([...configuredOrigins, ...defaultOrigins]);
 
 export function isOriginAllowed(origin: string | undefined): boolean {
   if (!origin) return true;
-  if (allowedOrigins.has(origin)) return true;
-  try {
-    const { hostname, protocol } = new URL(origin);
-    return protocol === 'https:' && hostname.endsWith('.vercel.app');
-  } catch {
-    return false;
-  }
+  return allowedOrigins.has(origin);
 }
 
 export const corsMiddleware = cors({

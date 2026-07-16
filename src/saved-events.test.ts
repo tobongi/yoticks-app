@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { mergeSavedEventIds, parseSavedEventIds } from './saved-events';
+import { mergeSavedEventIds, parseSavedEventIds } from './saved-events-core';
 
 test('parseSavedEventIds keeps only unique string ids', () => {
   assert.deepEqual(parseSavedEventIds('["1","2","1",3,null," 2 "]'), ['1', '2']);

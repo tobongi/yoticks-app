@@ -2,14 +2,14 @@ import { useState } from 'react';
 import { Alert, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { resetPassword } from '../../src/backend';
+import { requestPasswordReset } from '../../src/backend';
 import { useAuth } from '../../src/auth';
-import { SparkIcon, TicketIcon, UserIcon } from '../../src/icons';
 import { getPostAuthRoute } from '../../src/routing';
 import { colors } from '../../src/theme/colors';
 import { typography } from '../../src/theme/typography';
 import { ActionTile, HeroPanel, LivedBackground } from '../../src/ui/lived-in';
 import { usePhoneLayout } from '../../src/ui/responsive';
+import { Pictogram, TicketStubArt } from '../../src/ui/pictograms';
 
 export default function Login() {
   const { redirect } = useLocalSearchParams<{ redirect?: string }>();
@@ -21,8 +21,7 @@ export default function Login() {
   const [busy, setBusy] = useState(false);
   const [resetVisible, setResetVisible] = useState(false);
   const [resetEmail, setResetEmail] = useState('');
-  const [resetPasswordValue, setResetPasswordValue] = useState('');
-  const [resetConfirm, setResetConfirm] = useState('');
+  const [resetBusy, setResetBusy] = useState(false);
   const [devRole, setDevRole] = useState<'attendee' | 'organizer'>('attendee');
 
   const goNext = (role: 'attendee' | 'organizer') => {
@@ -65,23 +64,20 @@ export default function Login() {
   };
 
   const handleResetPassword = async () => {
-    if (!resetEmail.trim() || !resetPasswordValue.trim() || resetPasswordValue !== resetConfirm) {
-      Alert.alert('Reset', 'Email + 2 mots de passe identiques');
+    if (!resetEmail.trim()) {
+      Alert.alert('Mot de passe oublié', 'Entre ton adresse email.');
       return;
     }
+    setResetBusy(true);
     try {
-      const ok = await resetPassword(resetEmail, resetPasswordValue);
-      if (!ok) {
-        Alert.alert('Reset', 'Impossible');
-        return;
-      }
       setEmail(resetEmail);
+      await requestPasswordReset(resetEmail);
       setResetVisible(false);
-      setResetPasswordValue('');
-      setResetConfirm('');
-      Alert.alert('Reset', 'Mot de passe change');
+      Alert.alert('Vérifie tes messages', 'Si ce compte existe, un lien valable 30 minutes a été envoyé.');
     } catch (err) {
-      Alert.alert('Reset', err instanceof Error ? err.message : 'Impossible');
+      Alert.alert('Mot de passe oublié', err instanceof Error ? err.message : 'Envoi impossible');
+    } finally {
+      setResetBusy(false);
     }
   };
 
@@ -91,15 +87,15 @@ export default function Login() {
         <LivedBackground />
         <ScrollView contentContainerStyle={[styles.content, { paddingHorizontal: layout.screenPadding, paddingTop: layout.authTopPadding }]} showsVerticalScrollIndicator={false}>
           <Text style={styles.brand}>YOTICKS</Text>
-          <HeroPanel eyebrow="Entrer" title="Billets en 2 gestes" subtitle="Email. Mot de passe. C'est tout." art={<SparkIcon size={38} color={colors.orange} />}>
+          <HeroPanel eyebrow="Entrer" title="Retrouve tes billets" subtitle="Email + mot de passe" art={<TicketStubArt size={96} />}>
             <View style={styles.form}>
               <TextInput style={styles.input} value={email} onChangeText={setEmail} placeholder="Email" placeholderTextColor={colors.textMuted} keyboardType="email-address" autoCapitalize="none" />
               <TextInput style={styles.input} value={password} onChangeText={setPassword} placeholder="Mot de passe" placeholderTextColor={colors.textMuted} secureTextEntry />
               {!!error ? <Text style={styles.error}>{error}</Text> : null}
-              <Pressable style={styles.primaryButton} onPress={handleLogin} disabled={busy}>
+              <Pressable accessibilityRole="button" accessibilityLabel="Entrer" accessibilityState={{ disabled: busy, busy }} style={styles.primaryButton} onPress={handleLogin} disabled={busy}>
                 <Text style={styles.primaryButtonText}>{busy ? 'Connexion...' : 'Entrer'}</Text>
               </Pressable>
-              <Pressable style={styles.secondaryButton} onPress={() => router.push('/auth/register')}>
+              <Pressable accessibilityRole="button" accessibilityLabel="Créer un compte" style={styles.secondaryButton} onPress={() => router.push('/auth/register')}>
                 <Text style={styles.secondaryButtonText}>Creer un compte</Text>
               </Pressable>
               <Pressable accessibilityRole="button" accessibilityLabel="Ouvrir la reinitialisation du mot de passe" style={styles.linkButton} onPress={() => { setResetEmail(email); setResetVisible(true); }}>
@@ -110,8 +106,8 @@ export default function Login() {
 
           {__DEV__ ? (
             <View style={styles.devBlock}>
-              <ActionTile icon={<UserIcon size={20} color={colors.orange} />} label="Visiteur" hint="Mode dev" onPress={() => void handleDevLogin('attendee')} style={[styles.devTile, { width: layout.tileWidth }, devRole === 'attendee' ? styles.devActive : undefined]} />
-              <ActionTile icon={<TicketIcon size={20} color={colors.orange} />} label="Organisateur" hint="Mode dev" onPress={() => void handleDevLogin('organizer')} style={[styles.devTile, { width: layout.tileWidth }, devRole === 'organizer' ? styles.devActive : undefined]} />
+              <ActionTile icon={<Pictogram pictogram="profile" tone="blue" size={46} />} label="Visiteur" hint="Démo" tone="blue" onPress={() => void handleDevLogin('attendee')} style={[styles.devTile, { width: layout.tileWidth }, devRole === 'attendee' ? styles.devActive : undefined]} />
+              <ActionTile icon={<Pictogram pictogram="scan" tone="green" size={46} />} label="Organisateur" hint="Démo" tone="green" onPress={() => void handleDevLogin('organizer')} style={[styles.devTile, { width: layout.tileWidth }, devRole === 'organizer' ? styles.devActive : undefined]} />
             </View>
           ) : null}
         </ScrollView>
@@ -120,12 +116,11 @@ export default function Login() {
           <View style={styles.modalBackdrop}>
             <Pressable accessibilityRole="button" accessibilityLabel="Fermer la fenetre de reinitialisation" style={styles.modalScrim} onPress={() => setResetVisible(false)} />
             <View style={[styles.modalCard, { maxWidth: layout.modalCardWidth }]}>
-              <Text style={styles.modalTitle}>Reset</Text>
+              <Text style={styles.modalTitle}>Retrouver mon compte</Text>
+              <Text style={styles.modalCopy}>Nous envoyons un lien à usage unique. Ton mot de passe ne change jamais sans ce lien.</Text>
               <TextInput style={styles.input} value={resetEmail} onChangeText={setResetEmail} placeholder="Email" placeholderTextColor={colors.textMuted} autoCapitalize="none" />
-              <TextInput style={styles.input} value={resetPasswordValue} onChangeText={setResetPasswordValue} placeholder="Nouveau mot de passe" placeholderTextColor={colors.textMuted} secureTextEntry />
-              <TextInput style={styles.input} value={resetConfirm} onChangeText={setResetConfirm} placeholder="Encore" placeholderTextColor={colors.textMuted} secureTextEntry />
-              <Pressable style={styles.primaryButton} onPress={handleResetPassword}>
-                <Text style={styles.primaryButtonText}>Changer</Text>
+              <Pressable accessibilityRole="button" accessibilityLabel="Envoyer le lien" accessibilityState={{ disabled: resetBusy, busy: resetBusy }} style={styles.primaryButton} onPress={handleResetPassword} disabled={resetBusy}>
+                <Text style={styles.primaryButtonText}>{resetBusy ? 'Envoi...' : 'Envoyer le lien'}</Text>
               </Pressable>
             </View>
           </View>
@@ -156,4 +151,5 @@ const styles = StyleSheet.create({
   modalScrim: { ...StyleSheet.absoluteFill },
   modalCard: { width: '100%', borderRadius: 28, backgroundColor: colors.card, padding: 18, gap: 12 },
   modalTitle: { fontFamily: typography.fontFamily.bold, fontSize: typography.fontSize.xl, color: colors.text },
+  modalCopy: { fontFamily: typography.fontFamily.regular, fontSize: typography.fontSize.sm, lineHeight: 20, color: colors.textSecondary },
 });

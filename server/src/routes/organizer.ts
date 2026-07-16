@@ -210,7 +210,8 @@ organizerRouter.post('/tickets/scan', async (req: AuthRequest, res) => {
 
   const code = typeof req.body?.code === 'string' ? req.body.code : '';
   const gate = typeof req.body?.gate === 'string' ? req.body.gate : undefined;
-  const result = await store.scanOrganizerTicket(user.id, code, gate);
+  const source = req.body?.source === 'manual' ? 'manual' : 'qr';
+  const result = await store.scanOrganizerTicket(user.id, code, gate, source);
 
   if (result.outcome === 'not_found') {
     return res.status(404).json({ result });

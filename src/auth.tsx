@@ -1,12 +1,16 @@
 import type { ReactNode } from 'react';
 import { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import { Platform } from 'react-native';
+import * as SecureStore from 'expo-secure-store';
 import {
   devLogin as apiDevLogin,
+  deleteAccount as apiDeleteAccount,
   getMe,
   login as apiLogin,
   register as apiRegister,
   type BackendUser,
 } from './backend';
+import { createSessionStore, restoreValidSession, type SessionStorageAdapter } from './auth-session';
 
 type AuthState = {
   token: string | null;
@@ -16,18 +20,28 @@ type AuthState = {
   register: (name: string, email: string, password: string) => Promise<BackendUser>;
   devLogin: (role?: 'attendee' | 'organizer', email?: string) => Promise<BackendUser>;
   signOut: () => void;
+  deleteAccount: (password: string) => Promise<void>;
   refreshUser: () => Promise<void>;
 };
 
 const AuthContext = createContext<AuthState | null>(null);
-const STORAGE_KEY = 'yoticks.token';
+const webStorageAdapter: SessionStorageAdapter = {
+  getItem: async (key) => (typeof window === 'undefined' ? null : window.localStorage.getItem(key)),
+  setItem: async (key, value) => {
+    if (typeof window !== 'undefined') window.localStorage.setItem(key, value);
+  },
+  deleteItem: async (key) => {
+    if (typeof window !== 'undefined') window.localStorage.removeItem(key);
+  },
+};
 
-function getStorage() {
-  if (typeof window === 'undefined') {
-    return null;
-  }
-  return window.localStorage;
-}
+const nativeStorageAdapter: SessionStorageAdapter = {
+  getItem: (key) => SecureStore.getItemAsync(key),
+  setItem: (key, value) => SecureStore.setItemAsync(key, value, { keychainAccessible: SecureStore.WHEN_UNLOCKED }),
+  deleteItem: (key) => SecureStore.deleteItemAsync(key),
+};
+
+const sessionStore = createSessionStore(Platform.OS === 'web' ? webStorageAdapter : nativeStorageAdapter);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [token, setToken] = useState<string | null>(null);
@@ -35,32 +49,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const storedToken = getStorage()?.getItem(STORAGE_KEY);
-    if (!storedToken) {
-      setLoading(false);
-      return;
-    }
-
-    setToken(storedToken);
-    getMe(storedToken)
-      .then((nextUser) => setUser(nextUser))
-      .finally(() => setLoading(false));
+    let active = true;
+    restoreValidSession(sessionStore, getMe)
+      .then((session) => {
+        if (!active || !session) return;
+        setToken(session.token);
+        setUser(session.user);
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+    return () => { active = false; };
   }, []);
-
-  useEffect(() => {
-    if (!token) {
-      return;
-    }
-    getStorage()?.setItem(STORAGE_KEY, token);
-  }, [token]);
 
   const syncAuth = async (result: { token: string; user: BackendUser } | null) => {
     if (!result) {
       throw new Error('Connexion impossible');
     }
+    await sessionStore.save(result.token);
     setToken(result.token);
     setUser(result.user);
-    getStorage()?.setItem(STORAGE_KEY, result.token);
     return result.user;
   };
 
@@ -75,7 +83,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       signOut: () => {
         setToken(null);
         setUser(null);
-        getStorage()?.removeItem(STORAGE_KEY);
+        void sessionStore.clear();
+      },
+      deleteAccount: async (password) => {
+        if (!token) throw new Error('Connexion requise');
+        await apiDeleteAccount(password, token);
+        setToken(null);
+        setUser(null);
+        await sessionStore.clear();
       },
       refreshUser: async () => {
         if (!token) {

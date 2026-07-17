@@ -2443,7 +2443,7 @@ export class DataStore {
         },
       });
 
-      const createdTickets = [];
+      const createdTickets: any[] = [];
       for (let index = 0; index < quote.quantity; index += 1) {
         const ticketNumber = nextTicketNumber + index;
         const ticket = await tx.ticket.create({

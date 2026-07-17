@@ -25,8 +25,7 @@
     "express-rate-limit": "^7.4.1",
     "helmet": "^8.0.0",
     "jsonwebtoken": "^9.0.2",
-    "pngjs": "^7.0.0",
-    "yoticks-app": "file:.."
+    "pngjs": "^7.0.0"
   },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",

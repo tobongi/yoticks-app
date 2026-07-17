@@ -47,6 +47,7 @@ const developmentOrigins = [
 ];
 const defaultOrigins = [
   process.env.CLIENT_URL,
+  'https://yoticks.vercel.app',
   ...(!isProduction ? developmentOrigins : []),
 ].filter((origin): origin is string => Boolean(origin));
 

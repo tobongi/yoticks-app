@@ -47,7 +47,8 @@
     "server:db:seed": "npm --prefix server run db:seed",
     "payments:webhook:check": "npm --prefix server run payments:webhook:check",
     "lint": "expo lint",
-    "verify": "npm run typecheck && npm run lint && npm test && npm --prefix server test && npx expo-doctor && npm run build"
+    "verify": "npm run typecheck && npm run lint && npm test && npm --prefix server test && npx expo-doctor && npm run build",
+    "postinstall": "npm --prefix server install"
   },
   "private": true
 }

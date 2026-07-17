@@ -55,3 +55,4 @@ server/prisma/dev.db-journal
 .claude/
 AGENTS.md
 CLAUDE.md
+.vercel

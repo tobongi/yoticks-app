@@ -104,12 +104,10 @@ export default function Login() {
             </View>
           </HeroPanel>
 
-          {__DEV__ ? (
-            <View style={styles.devBlock}>
-              <ActionTile icon={<Pictogram pictogram="profile" tone="blue" size={46} />} label="Visiteur" hint="Démo" tone="blue" onPress={() => void handleDevLogin('attendee')} style={[styles.devTile, { width: layout.tileWidth }, devRole === 'attendee' ? styles.devActive : undefined]} />
-              <ActionTile icon={<Pictogram pictogram="scan" tone="green" size={46} />} label="Organisateur" hint="Démo" tone="green" onPress={() => void handleDevLogin('organizer')} style={[styles.devTile, { width: layout.tileWidth }, devRole === 'organizer' ? styles.devActive : undefined]} />
-            </View>
-          ) : null}
+          <View style={styles.devBlock}>
+            <ActionTile icon={<Pictogram pictogram="profile" tone="blue" size={46} />} label="Visiteur" hint="Démo" tone="blue" onPress={() => void handleDevLogin('attendee')} style={[styles.devTile, { width: layout.tileWidth }, devRole === 'attendee' ? styles.devActive : undefined]} />
+            <ActionTile icon={<Pictogram pictogram="scan" tone="green" size={46} />} label="Organisateur" hint="Démo" tone="green" onPress={() => void handleDevLogin('organizer')} style={[styles.devTile, { width: layout.tileWidth }, devRole === 'organizer' ? styles.devActive : undefined]} />
+          </View>
         </ScrollView>
 
         <Modal visible={resetVisible} transparent animationType="fade" onRequestClose={() => setResetVisible(false)}>

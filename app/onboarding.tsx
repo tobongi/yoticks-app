@@ -1,5 +1,5 @@
-import { useMemo, useState } from 'react';
-import { ImageBackground, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useMemo, useState, useEffect } from 'react';
+import { ImageBackground, Pressable, ScrollView, StyleSheet, Text, View, Animated, Easing, Dimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { useAuth } from '../src/auth';
@@ -18,11 +18,40 @@ import { SpeakButton } from '../src/ui/speak-button';
 const interests = Array.from(new Set(FALLBACK_EVENTS.map((event) => event.category)));
 const cities = groupEventsByCity(FALLBACK_EVENTS).map((entry) => entry.label);
 
+const { width } = Dimensions.get('window');
+
 export default function Onboarding() {
   const { token, user } = useAuth();
   const [selectedInterests, setSelectedInterests] = useState<string[]>([]);
   const [selectedCity, setSelectedCity] = useState<string | null>(cities[0] ?? null);
   const [busy, setBusy] = useState(false);
+  const [step, setStep] = useState(0);
+
+  const [fadeAnim] = useState(new Animated.Value(1));
+  const [slideAnim] = useState(new Animated.Value(0));
+
+  const animateTransition = (nextStep: number) => {
+    Animated.parallel([
+      Animated.timing(fadeAnim, { toValue: 0, duration: 150, useNativeDriver: true }),
+      Animated.timing(slideAnim, { toValue: -30, duration: 150, useNativeDriver: true })
+    ]).start(() => {
+      setStep(nextStep);
+      slideAnim.setValue(30);
+      Animated.parallel([
+        Animated.timing(fadeAnim, { toValue: 1, duration: 250, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
+        Animated.timing(slideAnim, { toValue: 0, duration: 250, easing: Easing.out(Easing.cubic), useNativeDriver: true })
+      ]).start();
+    });
+  };
+
+  const nextStep = () => {
+    if (step < 3) animateTransition(step + 1);
+    else finish();
+  };
+
+  const prevStep = () => {
+    if (step > 0) animateTransition(step - 1);
+  };
 
   const preview = useMemo(() => {
     return (
@@ -46,9 +75,7 @@ export default function Onboarding() {
   };
 
   const finish = async () => {
-    if (busy) {
-      return;
-    }
+    if (busy) return;
     setBusy(true);
     try {
       await saveOnboardingPreferences({ interests: selectedInterests.map((item) => item.toLowerCase()), city: selectedCity });
@@ -59,62 +86,91 @@ export default function Onboarding() {
     }
   };
 
+  const renderStep = () => {
+    switch (step) {
+      case 0:
+        return (
+          <HeroPanel eyebrow="Bienvenue" title="Trouve les meilleurs plans" subtitle="On t'accompagne pas à pas." art={<TicketStubArt size={120} />}>
+            <View style={styles.stepRow}>
+              <PictogramLabel pictogram="music" label="Style" size={48} />
+              <PictogramLabel pictogram="map" tone="yellow" label="Ville" size={48} />
+              <PictogramLabel pictogram="ticket" tone="blue" label="Billet" size={48} />
+            </View>
+            <SpeakButton instruction="Bienvenue sur Yoticks ! Prépare-toi à découvrir les meilleurs événements de ta ville." />
+          </HeroPanel>
+        );
+      case 1:
+        return (
+          <SectionBlock eyebrow="Etape 1" title="Qu'est-ce que tu aimes ?">
+            <Text style={styles.subtitle}>Sélectionne jusqu'à 3 styles pour personnaliser ton fil d'actualité.</Text>
+            <View style={styles.wrap}>
+              {interests.map((interest) => { const visual = getCategoryVisual(interest); return <ChoiceChip key={interest} label={visual.label} pictogram={<Pictogram pictogram={visual.key} tone={visual.tone} size={44} />} active={selectedInterests.includes(interest)} onPress={() => toggleInterest(interest)} />; })}
+            </View>
+          </SectionBlock>
+        );
+      case 2:
+        return (
+          <SectionBlock eyebrow="Etape 2" title="Où tu bouges ?">
+            <Text style={styles.subtitle}>Choisis ta ville principale pour trouver les événements près de toi.</Text>
+            <View style={styles.wrap}>
+              {cities.map((city) => (
+                <ChoiceChip key={city} label={city} pictogram={<Pictogram pictogram="map" tone="yellow" size={40} />} active={city === selectedCity} onPress={() => setSelectedCity(city)} />
+              ))}
+            </View>
+          </SectionBlock>
+        );
+      case 3:
+        return (
+          <SectionBlock eyebrow="Terminé" title="Ton premier plan !">
+            <Text style={styles.subtitle}>Voici un aperçu de ce qu'on a trouvé pour toi.</Text>
+            <View style={styles.previewCard}>
+              <ImageBackground source={{ uri: preview.imageUrl }} style={styles.previewVisual} imageStyle={styles.previewImage}>
+                <View style={styles.previewShade} />
+                <View style={styles.previewPrice}>
+                  <Text style={styles.previewPriceText}>{preview.price}</Text>
+                </View>
+                <View style={styles.previewIconWrap}>
+                  <Pictogram pictogram={previewVisual.key} tone={previewVisual.tone} size={48} />
+                </View>
+              </ImageBackground>
+              <View style={styles.previewBody}>
+                <Text style={styles.previewTitle}>{preview.title}</Text>
+                <Text style={styles.previewCategory}>{preview.category}</Text>
+                <Text style={styles.previewMeta}>{preview.location} • {preview.date}</Text>
+              </View>
+            </View>
+          </SectionBlock>
+        );
+    }
+  };
+
   return (
     <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
       <LivedBackground />
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      <View style={styles.header}>
+        {step > 0 ? (
+          <Pressable onPress={prevStep} style={styles.backButton} accessibilityLabel="Retour">
+            <Text style={styles.backText}>← Retour</Text>
+          </Pressable>
+        ) : <View style={styles.backSpacer} />}
         <Text style={styles.brand}>YOTICKS</Text>
-
-        <HeroPanel
-          eyebrow="Bienvenue"
-          title="On te montre les bons plans"
-          subtitle="Choisis avec les images."
-          art={<TicketStubArt size={92} />}
-        >
-          <View style={styles.stepRow}>
-            <PictogramLabel pictogram="music" label="Style" size={48} />
-            <PictogramLabel pictogram="map" tone="yellow" label="Ville" size={48} />
-            <PictogramLabel pictogram="ticket" tone="blue" label="Billet" size={48} />
-          </View>
-          <SpeakButton instruction="Choisis les images que tu aimes, puis ta ville. Appuie ensuite sur Continuer." />
-        </HeroPanel>
-
-        <SectionBlock eyebrow="Style" title="Ce que tu aimes">
-          <View style={styles.wrap}>
-            {interests.map((interest) => { const visual = getCategoryVisual(interest); return <ChoiceChip key={interest} label={visual.label} pictogram={<Pictogram pictogram={visual.key} tone={visual.tone} size={44} />} active={selectedInterests.includes(interest)} onPress={() => toggleInterest(interest)} />; })}
-          </View>
-        </SectionBlock>
-
-        <SectionBlock eyebrow="Ville" title="Ou tu bouges">
-          <View style={styles.wrap}>
-            {cities.map((city) => (
-              <ChoiceChip key={city} label={city} pictogram={<Pictogram pictogram="map" tone="yellow" size={40} />} active={city === selectedCity} onPress={() => setSelectedCity(city)} />
-            ))}
-          </View>
-        </SectionBlock>
-
-        <SectionBlock eyebrow="Apercu" title="Ce qui peut sortir">
-          <View style={styles.previewCard}>
-            <ImageBackground source={{ uri: preview.imageUrl }} style={styles.previewVisual} imageStyle={styles.previewImage}>
-              <View style={styles.previewShade} />
-              <View style={styles.previewPrice}>
-                <Text style={styles.previewPriceText}>{preview.price}</Text>
-              </View>
-              <View style={styles.previewIconWrap}>
-                <Pictogram pictogram={previewVisual.key} tone={previewVisual.tone} size={48} />
-              </View>
-            </ImageBackground>
-            <View style={styles.previewBody}>
-              <Text style={styles.previewTitle}>{preview.title}</Text>
-              <Text style={styles.previewCategory}>{preview.category}</Text>
-              <Text style={styles.previewMeta}>{preview.location} • {preview.date}</Text>
-            </View>
-          </View>
-        </SectionBlock>
+        <View style={styles.stepIndicator}>
+          <Text style={styles.stepText}>{step + 1} / 4</Text>
+        </View>
+      </View>
+      
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}>
+          {renderStep()}
+        </Animated.View>
       </ScrollView>
+
       <View style={styles.footer}>
-        <Pressable accessibilityRole="button" accessibilityLabel="Continuer" accessibilityState={{ disabled: busy, busy }} style={[styles.primaryButton, busy && styles.primaryButtonDisabled]} onPress={finish} disabled={busy}>
-          <Text style={styles.primaryButtonText}>{busy ? '...' : 'Continuer'}</Text>
+        <View style={styles.progressTrack}>
+          <View style={[styles.progressFill, { width: `${((step + 1) / 4) * 100}%` }]} />
+        </View>
+        <Pressable accessibilityRole="button" accessibilityLabel={step === 3 ? "Commencer" : "Continuer"} accessibilityState={{ disabled: busy, busy }} style={[styles.primaryButton, busy && styles.primaryButtonDisabled]} onPress={nextStep} disabled={busy}>
+          <Text style={styles.primaryButtonText}>{busy ? '...' : (step === 3 ? "C'est parti !" : "Continuer")}</Text>
         </Pressable>
       </View>
     </SafeAreaView>
@@ -132,9 +188,16 @@ function ChoiceChip({ label, pictogram, active, onPress }: { label: string; pict
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: colors.bgDeep },
-  content: { paddingHorizontal: 20, paddingTop: 20, paddingBottom: 112, gap: 18 },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingTop: 10, paddingBottom: 10 },
   brand: { fontFamily: typography.fontFamily.bold, fontSize: typography.fontSize.sm, color: colors.orange, letterSpacing: 4 },
-  stepRow: { flexDirection: 'row', gap: 10, flexWrap: 'wrap' },
+  backButton: { paddingVertical: 8, paddingHorizontal: 12, borderRadius: 12, backgroundColor: colors.cardHover },
+  backText: { fontFamily: typography.fontFamily.medium, fontSize: typography.fontSize.xs, color: colors.textSecondary },
+  backSpacer: { width: 60 },
+  stepIndicator: { paddingVertical: 6, paddingHorizontal: 12, borderRadius: 12, backgroundColor: colors.card },
+  stepText: { fontFamily: typography.fontFamily.bold, fontSize: typography.fontSize.xs, color: colors.orange },
+  content: { paddingHorizontal: 20, paddingTop: 10, paddingBottom: 112, gap: 18 },
+  subtitle: { fontFamily: typography.fontFamily.regular, fontSize: typography.fontSize.md, color: colors.textSecondary, marginBottom: 16, lineHeight: 22 },
+  stepRow: { flexDirection: 'row', gap: 10, flexWrap: 'wrap', marginTop: 10 },
   wrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   choiceChip: {
     minHeight: 52,
@@ -178,10 +241,15 @@ const styles = StyleSheet.create({
   previewMeta: { fontFamily: typography.fontFamily.medium, fontSize: typography.fontSize.base, color: colors.textSecondary },
   footer: {
     paddingHorizontal: 20,
-    paddingTop: 10,
-    paddingBottom: 18,
-    backgroundColor: 'rgba(248,241,236,0.94)',
+    paddingTop: 16,
+    paddingBottom: 24,
+    backgroundColor: colors.card,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    gap: 16,
   },
+  progressTrack: { height: 4, backgroundColor: colors.border, borderRadius: 2, overflow: 'hidden' },
+  progressFill: { height: '100%', backgroundColor: colors.orange },
   primaryButton: {
     minHeight: 56,
     borderRadius: 20,

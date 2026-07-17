@@ -1,0 +1,16 @@
+{
+  "framework": "create-react-app",
+  "buildCommand": "npx expo export -p web --output-dir dist-release",
+  "outputDirectory": "dist-release",
+  "build": {
+    "env": {
+      "EXPO_PUBLIC_API_URL": "https://yoticks-app-production-513e.up.railway.app/api"
+    }
+  },
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ]
+}

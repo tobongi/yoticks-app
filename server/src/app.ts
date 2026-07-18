@@ -26,6 +26,7 @@ app.use(
   }),
 );
 app.use(corsMiddleware);
+app.options('*', corsMiddleware);
 app.use('/api/payments/mobile-money/webhook', express.raw({ type: 'application/json' }));
 app.use('/api/mbiyopay/notify', express.raw({ type: 'application/json' }));
 app.use(express.json({ limit: '1mb' }));

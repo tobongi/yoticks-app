@@ -24,6 +24,14 @@ export const authLimiter = makeRateLimiter({
   skipSuccessfulRequests: true,
 });
 
+function normalizeOrigin(origin: string): string {
+  return origin
+    .trim()
+    .replace(/^["']|["']$/g, '')
+    .replace(/\/$/, '')
+    .toLowerCase();
+}
+
 function parseList(value: string | undefined): string[] {
   return (value ?? '')
     .split(',')
@@ -31,7 +39,7 @@ function parseList(value: string | undefined): string[] {
     .filter(Boolean);
 }
 
-const configuredOrigins = parseList(process.env.CORS_ORIGINS);
+const configuredOrigins = parseList(process.env.CORS_ORIGINS).map(normalizeOrigin);
 const developmentOrigins = [
   'http://localhost:19006',
   'http://127.0.0.1:19006',
@@ -44,18 +52,21 @@ const developmentOrigins = [
   'http://127.0.0.1:4173',
   'http://localhost:3000',
   'http://127.0.0.1:3000',
-];
+].map(normalizeOrigin);
+
 const defaultOrigins = [
   process.env.CLIENT_URL,
   'https://yoticks.vercel.app',
   ...(!isProduction ? developmentOrigins : []),
-].filter((origin): origin is string => Boolean(origin));
+]
+  .filter((origin): origin is string => Boolean(origin))
+  .map(normalizeOrigin);
 
 const allowedOrigins = new Set([...configuredOrigins, ...defaultOrigins]);
 
 export function isOriginAllowed(origin: string | undefined): boolean {
   if (!origin) return true;
-  return allowedOrigins.has(origin);
+  return allowedOrigins.has(normalizeOrigin(origin));
 }
 
 export const corsMiddleware = cors({
@@ -65,3 +76,4 @@ export const corsMiddleware = cors({
   },
   credentials: true,
 });
+

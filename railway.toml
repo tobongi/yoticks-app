@@ -2,7 +2,6 @@
 builder = "DOCKERFILE"
 dockerfilePath = "server/Dockerfile"
 context = "server"
-watchPatterns = ["server/**"]
 # The buildCommand below is unused by the Dockerfile builder but required for E2E validation tests
 buildCommand = "cd server && npm install && npm run db:generate && npm run build"
 

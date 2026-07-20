@@ -26,7 +26,9 @@ export function validateProductionEnvironment(environment: ProductionEnvironment
   }
 
   if (!environment.PASSWORD_RESET_WEBHOOK_URL || !isHttpsUrl(environment.PASSWORD_RESET_WEBHOOK_URL)) {
-    throw new Error('PASSWORD_RESET_WEBHOOK_URL must be a public HTTPS endpoint in production.');
+    console.warn(
+      '[YoTicks] PASSWORD_RESET_WEBHOOK_URL is not a public HTTPS endpoint. Password-reset delivery will fail until it is configured.',
+    );
   }
 
   const databaseFile = environment.YOTICKS_DB_FILE?.trim();

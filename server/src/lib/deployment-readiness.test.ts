@@ -16,17 +16,34 @@ test('accepts a production database stored inside the attached Railway volume', 
   assert.doesNotThrow(() => validateProductionEnvironment(readyProductionEnvironment));
 });
 
-test('rejects production secrets, reset delivery, or SQLite storage that are unsafe', () => {
+test('rejects unsafe production secrets or SQLite storage outside the volume', () => {
   assert.throws(() => validateProductionEnvironment({ ...readyProductionEnvironment, JWT_SECRET: 'short' }), /JWT_SECRET/);
-  assert.throws(
-    () => validateProductionEnvironment({ ...readyProductionEnvironment, PASSWORD_RESET_WEBHOOK_URL: 'http://localhost/reset' }),
-    /PASSWORD_RESET_WEBHOOK_URL/,
-  );
   assert.throws(() => validateProductionEnvironment({ ...readyProductionEnvironment, YOTICKS_DB_FILE: 'prisma/prod.db' }), /YOTICKS_DB_FILE/);
   assert.throws(
     () => validateProductionEnvironment({ ...readyProductionEnvironment, YOTICKS_DB_FILE: '/app/prisma/prod.db' }),
     /RAILWAY_VOLUME_MOUNT_PATH/,
   );
+});
+
+test('warns instead of throwing when PASSWORD_RESET_WEBHOOK_URL is missing or insecure', () => {
+  const originalWarn = console.warn;
+  const warnings: unknown[][] = [];
+  console.warn = (...args: unknown[]) => {
+    warnings.push(args);
+  };
+
+  try {
+    assert.doesNotThrow(() =>
+      validateProductionEnvironment({ ...readyProductionEnvironment, PASSWORD_RESET_WEBHOOK_URL: undefined }),
+    );
+    assert.doesNotThrow(() =>
+      validateProductionEnvironment({ ...readyProductionEnvironment, PASSWORD_RESET_WEBHOOK_URL: 'http://localhost/reset' }),
+    );
+  } finally {
+    console.warn = originalWarn;
+  }
+
+  assert.equal(warnings.length, 2);
 });
 
 test('does not impose production hosting rules on local development and tests', () => {

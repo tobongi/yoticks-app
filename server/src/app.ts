@@ -43,6 +43,7 @@ app.get('/api/health', async (_req, res) => {
 app.use('/api/auth/login', authLimiter);
 app.use('/api/auth/register', authLimiter);
 app.use('/api/auth/password-reset', authLimiter);
+app.use('/api/auth/dev-login', authLimiter);
 app.use('/api/auth', authRouter);
 app.use('/api/events', eventsRouter);
 app.use('/api/organizer', organizerRouter);

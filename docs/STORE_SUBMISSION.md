@@ -56,7 +56,7 @@ npx eas-cli build --profile production --platform android
 
 ## Review access
 
-Create fresh, non-production reviewer accounts in the review backend: one attendee and one organizer with a published free event and two tickets (one valid, one used). Do not expose `/auth/dev-login`; the route returns 404 in production.
+Reviewers can use the "Visiteur" / "Organisateur" demo tiles on the login screen — these call `/auth/dev-login`, which is intentionally public in every environment (including production) so anyone can try the app without registering. It only ever signs in as the fixed demo accounts below; it does not accept an arbitrary email/account in production. Alternatively, create fresh reviewer accounts in the review backend: one attendee and one organizer with a published free event and two tickets (one valid, one used).
 
 ## Mandatory real-device checks
 

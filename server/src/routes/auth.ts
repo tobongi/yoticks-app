@@ -191,11 +191,13 @@ authRouter.delete('/account', requireAuth, async (req: AuthRequest, res) => {
 });
 
 authRouter.post('/dev-login', async (req, res) => {
-  if (process.env.NODE_ENV === 'production') {
-    return res.status(404).json({ error: 'Route introuvable' });
-  }
+  // Public guest/demo entry point (the "Visiteur"/"Organisateur Démo" tiles). Unlike /login this issues
+  // a token with no password check, so outside tests it MUST only ever resolve to the fixed demo
+  // accounts below — never to an attacker-supplied email — or it becomes an account-takeover primitive.
   const role = req.body?.role === 'organizer' ? 'organizer' : 'attendee';
-  const requestedEmail = typeof req.body?.email === 'string' ? normalizeEmail(req.body.email) : null;
+  const isNonProduction = process.env.NODE_ENV !== 'production';
+  const requestedEmail =
+    isNonProduction && typeof req.body?.email === 'string' ? normalizeEmail(req.body.email) : null;
   const fallbackEmail = role === 'organizer' ? 'organizer@yoticks.dev' : 'jean.dupont@example.com';
   const users = await store.listUsers();
   const user =

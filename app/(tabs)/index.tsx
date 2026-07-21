@@ -26,6 +26,7 @@ import { Screen } from '../../src/ui/screen';
 import { Pictogram } from '../../src/ui/pictograms';
 import { getCategoryVisual } from '../../src/ui/visual-language';
 import { useLayout } from '../../src/ui/responsive';
+import { ImageScrim } from '../../src/ui/image-scrim';
 
 type LoadState = 'loading' | 'ready' | 'error';
 
@@ -273,7 +274,7 @@ function Spotlight({ event, minHeight }: { event: BackendEvent; minHeight: numbe
         style={[styles.spotlightImage, { minHeight }]}
         imageStyle={styles.spotlightImageInner}
       >
-        <View style={styles.spotlightScrim} />
+        <ImageScrim id="spotlight" />
 
         <View style={styles.spotlightTop}>
           <View style={styles.spotlightEyebrow}>
@@ -327,7 +328,7 @@ function PosterCard({ event, width, height }: { event: BackendEvent; width: numb
         style={[styles.poster, { height }]}
         imageStyle={styles.posterInner}
       >
-        <View style={styles.posterScrim} />
+        <ImageScrim id="poster" />
         <Text style={styles.posterCategory} numberOfLines={1}>
           {event.category}
         </Text>
@@ -375,7 +376,6 @@ const styles = StyleSheet.create({
   spotlightPressed: { opacity: 0.94, transform: [{ scale: 0.99 }] },
   spotlightImage: { justifyContent: 'space-between', padding: space.lg },
   spotlightImageInner: { borderRadius: radius.xxl },
-  spotlightScrim: { ...StyleSheet.absoluteFill, backgroundColor: colors.imageScrim },
   spotlightTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', gap: space.sm },
   spotlightEyebrow: {
     borderRadius: radius.pill,
@@ -406,7 +406,6 @@ const styles = StyleSheet.create({
 
   poster: { borderRadius: radius.xl, overflow: 'hidden', padding: space.md, justifyContent: 'flex-end', gap: space.xs },
   posterInner: { borderRadius: radius.xl },
-  posterScrim: { ...StyleSheet.absoluteFill, backgroundColor: colors.imageScrim },
   posterCategory: { ...typography.text.caption, color: colors.onImage },
   posterTitle: { ...typography.text.heading, color: colors.onImage },
   posterMetaText: { ...typography.text.meta, color: colors.onImage },

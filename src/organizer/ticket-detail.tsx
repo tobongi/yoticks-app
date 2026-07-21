@@ -17,6 +17,7 @@ import { REFRESH, useLiveRefresh } from '../live-refresh';
 import { Chip, HeroPanel, LivedBackground, ScreenHeader, SectionBlock, StatRow } from '../ui/lived-in';
 import { TicketStubArt } from '../ui/pictograms';
 import { usePhoneLayout } from '../ui/responsive';
+import { ImageScrim } from '../ui/image-scrim';
 
 type TicketStatusOption = BackendTicket['status'];
 
@@ -109,7 +110,7 @@ export function OrganizerTicketDetail() {
         <ScreenHeader eyebrow="Billet" title={ticket.holderName} />
 
         <ImageBackground source={{ uri: ticket.event.imageUrl }} style={styles.cover} imageStyle={styles.coverInner}>
-          <View style={styles.coverShade} />
+          <ImageScrim id="ticket-cover" />
           <View style={styles.coverTop}>
             <Text style={styles.coverChip}>{formatStatusLabel(draftStatus)}</Text>
             <Text style={styles.coverChip}>{ticket.code}</Text>
@@ -192,7 +193,6 @@ const styles = StyleSheet.create({
   emptyCopy: { fontFamily: typography.fontFamily.medium, fontSize: typography.fontSize.base, color: colors.textSecondary },
   cover: { minHeight: 220, borderRadius: 28, overflow: 'hidden', padding: 16, justifyContent: 'flex-end', gap: 8 },
   coverInner: { borderRadius: 28 },
-  coverShade: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(17,17,17,0.24)' },
   coverTop: { position: 'absolute', top: 16, left: 16, right: 16, flexDirection: 'row', justifyContent: 'space-between', gap: 8 },
   coverChip: { borderRadius: 999, overflow: 'hidden', paddingHorizontal: 12, paddingVertical: 7, backgroundColor: 'rgba(255,255,255,0.88)', fontFamily: typography.fontFamily.semiBold, fontSize: typography.fontSize.sm, color: colors.text },
   coverTitle: { fontFamily: typography.fontFamily.bold, fontSize: typography.fontSize['2xl'], lineHeight: 34, color: colors.ivory },

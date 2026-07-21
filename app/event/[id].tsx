@@ -14,6 +14,7 @@ import { Screen } from '../../src/ui/screen';
 import { usePhoneLayout } from '../../src/ui/responsive';
 import { Pictogram } from '../../src/ui/pictograms';
 import { getCategoryVisual, type PictogramKey } from '../../src/ui/visual-language';
+import { ImageScrim } from '../../src/ui/image-scrim';
 
 export default function EventDetailScreen() {
   const { id } = useLocalSearchParams<{ id?: string }>();
@@ -67,7 +68,7 @@ export default function EventDetailScreen() {
       </Pressable>
 
       <ImageBackground source={{ uri: current.imageUrl }} style={[styles.heroImage, { minHeight: layout.heroImageMinHeight }]} imageStyle={styles.heroImageInner}>
-        <View style={styles.heroShade} />
+        <ImageScrim id="event-hero" />
         <View style={styles.heroTop}>
           <Text style={styles.heroPrice}>{current.price}</Text>
           <SavedEventButton compact eventId={current.id} />
@@ -162,7 +163,6 @@ const styles = StyleSheet.create({
   backText: { fontFamily: typography.fontFamily.semiBold, fontSize: typography.fontSize.sm, color: colors.orangeInk },
   heroImage: { borderRadius: 30, overflow: 'hidden', padding: 18, justifyContent: 'flex-end', gap: 10 },
   heroImageInner: { borderRadius: 30 },
-  heroShade: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(17,17,17,0.28)' },
   heroTop: { position: 'absolute', top: 16, left: 16, right: 16, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   heroPrice: { borderRadius: 999, overflow: 'hidden', paddingHorizontal: 12, paddingVertical: 7, backgroundColor: 'rgba(255,255,255,0.88)', fontFamily: typography.fontFamily.semiBold, fontSize: typography.fontSize.sm, color: colors.text },
   heroCategory: { fontFamily: typography.fontFamily.medium, fontSize: typography.fontSize.sm, color: colors.ivory },

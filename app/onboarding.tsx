@@ -15,6 +15,7 @@ import { Pictogram, PictogramLabel, TicketStubArt } from '../src/ui/pictograms';
 import { getCategoryVisual } from '../src/ui/visual-language';
 import { SpeakButton } from '../src/ui/speak-button';
 import { CenteredColumn } from '../src/ui/screen';
+import { ImageScrim } from '../src/ui/image-scrim';
 
 const interests = Array.from(new Set(FALLBACK_EVENTS.map((event) => event.category)));
 const cities = groupEventsByCity(FALLBACK_EVENTS).map((entry) => entry.label);
@@ -124,7 +125,7 @@ export default function Onboarding() {
             <Text style={styles.subtitle}>Voici un aperçu de ce qu'on a trouvé pour toi.</Text>
             <View style={styles.previewCard}>
               <ImageBackground source={{ uri: preview.imageUrl }} style={styles.previewVisual} imageStyle={styles.previewImage}>
-                <View style={styles.previewShade} />
+                <ImageScrim id="onboarding" />
                 <View style={styles.previewPrice}>
                   <Text style={styles.previewPriceText}>{preview.price}</Text>
                 </View>
@@ -231,7 +232,6 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   previewImage: { borderRadius: 22 },
-  previewShade: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(17,17,17,0.22)' },
   previewPrice: { alignSelf: 'flex-start', borderRadius: 999, backgroundColor: colors.card, paddingHorizontal: 12, paddingVertical: 7 },
   previewPriceText: { fontFamily: typography.fontFamily.semiBold, fontSize: typography.fontSize.sm, color: colors.text },
   previewIconWrap: { alignSelf: 'flex-end', width: 52, height: 52, borderRadius: 18, backgroundColor: colors.card, alignItems: 'center', justifyContent: 'center' },

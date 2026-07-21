@@ -12,6 +12,7 @@ import { HeroPanel, PrimaryAction, ScreenHeader, SectionBlock, StatRow, VisualCa
 import { Pictogram, StatusSeal, TicketStubArt, VisualState } from '../../src/ui/pictograms';
 import { getTicketVisual } from '../../src/ui/visual-language';
 import { Screen } from '../../src/ui/screen';
+import { ImageScrim } from '../../src/ui/image-scrim';
 
 export default function TicketsScreen() {
   const { token } = useAuth();
@@ -39,7 +40,7 @@ export default function TicketsScreen() {
         {featured ? (
           <Pressable accessibilityRole="button" accessibilityLabel={`Ouvrir le billet ${featured.event.title}`} style={styles.heroPass} onPress={() => router.push(`/ticket/${featured.id}`)}>
             <ImageBackground source={{ uri: featured.event.imageUrl }} style={styles.heroPassImage} imageStyle={styles.heroPassInner}>
-              <View style={styles.heroPassShade} />
+              <ImageScrim id="pass" />
               <View style={styles.heroPassTop}>
                 <Text style={styles.heroPassTag}>{featured.event.category}</Text>
                 <View style={styles.codePill}>
@@ -95,7 +96,6 @@ const styles = StyleSheet.create({
   heroPass: { overflow: 'hidden', borderRadius: 24 },
   heroPassImage: { minHeight: 170, padding: 14, justifyContent: 'space-between' },
   heroPassInner: { borderRadius: 24 },
-  heroPassShade: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(17,17,17,0.26)' },
   heroPassTop: { flexDirection: 'row', justifyContent: 'space-between', gap: 10 },
   heroPassTag: { fontFamily: typography.fontFamily.medium, fontSize: typography.fontSize.sm, color: colors.ivory },
   codePill: { flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 7, backgroundColor: 'rgba(17,17,17,0.3)' },

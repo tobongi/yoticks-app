@@ -20,6 +20,7 @@ import { typography } from '../../src/theme/typography';
 import { ActionTile, HeroPanel, InlineScroll, ProgressBar, ScreenHeader, SectionBlock, StatRow, VisualCard } from '../../src/ui/lived-in';
 import { Pictogram, TicketStubArt } from '../../src/ui/pictograms';
 import { Screen } from '../../src/ui/screen';
+import { ImageScrim } from '../../src/ui/image-scrim';
 
 export default function OrganizerHome() {
   const { user, token } = useAuth();
@@ -53,7 +54,7 @@ export default function OrganizerHome() {
         {heroEvent ? (
           <Pressable accessibilityRole="button" accessibilityLabel="Ouvrir mes événements" style={styles.heroEvent} onPress={() => router.push('/(organizer)/events' as never)}>
             <ImageBackground source={{ uri: heroEvent.imageUrl }} style={styles.heroEventImage} imageStyle={styles.heroEventInner}>
-              <View style={styles.heroEventShade} />
+              <ImageScrim id="org-hero" />
               <Text style={styles.heroEventLabel}>{heroEvent.category}</Text>
               <Text style={styles.heroEventTitle}>{heroEvent.title}</Text>
             </ImageBackground>
@@ -132,7 +133,6 @@ const styles = StyleSheet.create({
   heroEvent: { overflow: 'hidden', borderRadius: 24 },
   heroEventImage: { minHeight: 150, padding: 14, justifyContent: 'space-between' },
   heroEventInner: { borderRadius: 24 },
-  heroEventShade: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(17,17,17,0.24)' },
   heroEventLabel: { fontFamily: typography.fontFamily.medium, fontSize: typography.fontSize.sm, color: colors.ivory },
   heroEventTitle: { fontFamily: typography.fontFamily.bold, fontSize: typography.fontSize.xl, color: colors.ivory },
   tileRow: { gap: 10, paddingRight: 8 },

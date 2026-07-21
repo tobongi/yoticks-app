@@ -2,6 +2,7 @@ import type { GestureResponderEvent, StyleProp, ViewStyle } from 'react-native';
 import { Pressable, StyleSheet, Text } from 'react-native';
 import { colors } from './theme/colors';
 import { typography } from './theme/typography';
+import { radius, size, space } from './theme/tokens';
 import { useI18n } from './i18n';
 import { useSavedEvents } from './saved-events';
 
@@ -49,18 +50,22 @@ const styles = StyleSheet.create({
   base: {
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 999,
+    borderRadius: radius.pill,
     borderWidth: 1,
   },
   regular: {
-    minHeight: 48,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    minHeight: size.touchMin,
+    paddingHorizontal: space.lg,
+    paddingVertical: space.md,
   },
+  // The compact variant used to be 34pt tall, below the WCAG 2.2 minimum —
+  // measured at 88x34 on the live site. It sits at the edge of a card that
+  // is itself tappable, so an undersized target here means people who miss
+  // it open the event instead of saving it.
   compact: {
-    minHeight: 34,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
+    minHeight: size.touchMin,
+    paddingHorizontal: space.md,
+    paddingVertical: space.sm,
   },
   fullWidth: {
     width: '100%',
@@ -83,7 +88,7 @@ const styles = StyleSheet.create({
     fontSize: typography.fontSize.sm,
   },
   labelCompact: {
-    fontSize: typography.fontSize.xs,
+    fontSize: typography.fontSize.sm,
   },
   labelSaved: {
     color: colors.black,

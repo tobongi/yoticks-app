@@ -46,7 +46,10 @@ export default function TabsLayout() {
         tabBarActiveTintColor: colors.orangeInk,
         tabBarInactiveTintColor: colors.textMuted,
         tabBarStyle: {
-          position: 'absolute',
+          // React Native's absolute positioning is relative to the navigator
+          // on native. On web, the navigator can grow with its scroll content,
+          // so use a viewport-fixed bar to keep it attached to the phone edge.
+          position: Platform.select({ web: 'fixed', default: 'absolute' }),
           left: 0,
           right: 0,
           bottom: space.md,
@@ -57,6 +60,7 @@ export default function TabsLayout() {
           borderRadius: radius.xl,
           backgroundColor: colors.card,
           borderTopWidth: 0,
+          zIndex: 20,
           paddingTop: space.sm,
           paddingBottom: space.sm,
           ...elevation.lg,

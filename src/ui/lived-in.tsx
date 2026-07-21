@@ -1,31 +1,103 @@
-import type { ReactNode } from 'react';
-import { ImageBackground, Pressable, ScrollView, StyleProp, StyleSheet, Text, View, type ViewStyle } from 'react-native';
+import { useEffect, useRef, type ReactNode } from 'react';
+import {
+  ActivityIndicator,
+  Animated,
+  Easing,
+  ImageBackground,
+  Pressable,
+  ScrollView,
+  StyleProp,
+  StyleSheet,
+  Text,
+  View,
+  type ViewStyle,
+} from 'react-native';
 import { colors } from '../theme/colors';
-import { shadow } from '../theme/shadows';
+import { elevation } from '../theme/shadows';
 import { typography } from '../theme/typography';
+import { duration, opacity, radius, size, space, stroke } from '../theme/tokens';
+import { focusRingStyle, interactionProps, useInteraction } from './interaction';
 import { Pictogram } from './pictograms';
 import { getCategoryVisual, type PictogramKey, type VisualTone } from './visual-language';
 
 type Tone = VisualTone;
 
-const toneMap: Record<Tone, { tint: string; border: string; ink: string; soft: string }> = {
-  orange: { tint: colors.orange, border: colors.borderOrange, ink: colors.orange, soft: colors.accentWash },
-  green: { tint: colors.green, border: colors.green + '33', ink: colors.green, soft: colors.green + '14' },
-  yellow: { tint: colors.yellow, border: colors.yellow + '55', ink: colors.black, soft: colors.yellow + '18' },
-  blue: { tint: colors.blue, border: colors.blue + '44', ink: colors.blue, soft: colors.surfaceBlue },
-  red: { tint: colors.red, border: colors.red + '44', ink: colors.red, soft: '#FFF0F0' },
-  ink: { tint: colors.black, border: colors.borderStrong, ink: colors.black, soft: colors.cardHover },
+/**
+ * How each tone renders in the four places a colour can appear.
+ *
+ * `fill` is only ever paired with `onFill`, and every one of those pairs is
+ * contrast-tested in `theme/colors.test.ts`. Note that green's fill is the
+ * *ink* green: the lighter #4D8F6A only reaches 3.85:1 against white, which
+ * is not good enough for button text.
+ */
+const toneMap: Record<
+  Tone,
+  { fill: string; onFill: string; ink: string; border: string; soft: string }
+> = {
+  orange: {
+    fill: colors.orange,
+    onFill: colors.onAccent,
+    ink: colors.orangeInk,
+    border: colors.borderOrange,
+    soft: colors.surfaceOrange,
+  },
+  green: {
+    fill: colors.greenInk,
+    onFill: colors.onDark,
+    ink: colors.greenInk,
+    border: 'rgba(47,107,72,0.28)',
+    soft: colors.surfaceGreen,
+  },
+  yellow: {
+    fill: colors.yellow,
+    onFill: colors.onAccent,
+    ink: colors.yellowInk,
+    border: 'rgba(122,84,6,0.24)',
+    soft: colors.surfaceYellow,
+  },
+  blue: {
+    fill: colors.blue,
+    onFill: colors.onDark,
+    ink: colors.blueInk,
+    border: 'rgba(42,85,176,0.26)',
+    soft: colors.surfaceBlue,
+  },
+  red: {
+    fill: colors.red,
+    onFill: colors.onDark,
+    ink: colors.redInk,
+    border: 'rgba(184,28,35,0.26)',
+    soft: colors.surfaceRed,
+  },
+  ink: {
+    fill: colors.black,
+    onFill: colors.onDark,
+    ink: colors.text,
+    border: colors.borderStrong,
+    soft: colors.cardHover,
+  },
 };
 
-export function LivedBackground() {
-  return (
-    <View style={[StyleSheet.absoluteFill, styles.backgroundFrame, { pointerEvents: 'none' }]}>
-      <View style={styles.orbTop} />
-      <View style={styles.orbBottom} />
-      <View style={styles.grid} />
-    </View>
-  );
+export function getTonePalette(tone: Tone) {
+  return toneMap[tone];
 }
+
+/**
+ * @deprecated Renders nothing.
+ *
+ * This used to paint two translucent blur orbs and a fake grid behind every
+ * screen. It read as generic template decoration, fought the photography on
+ * card thumbnails, and added a full-screen overdraw on cheap GPUs for no
+ * information gain. Depth now comes from the elevation scale and the warm
+ * canvas. Kept as a no-op so screens can drop it incrementally.
+ */
+export function LivedBackground() {
+  return null;
+}
+
+// ---------------------------------------------------------------------------
+// Structure
+// ---------------------------------------------------------------------------
 
 export function ScreenHeader({
   eyebrow,
@@ -47,6 +119,16 @@ export function ScreenHeader({
   );
 }
 
+/**
+ * The primary panel on a screen.
+ *
+ * Restructured: the decorative art used to sit in a row *beside* the title,
+ * where a 96pt illustration plus its 72pt minimum width squeezed the heading
+ * into a 157pt column — "Trouve les meilleurs plans" wrapped onto four
+ * lines at 30px. The art now shares the top row with the eyebrow and the
+ * title runs the full width of the panel. Decoration no longer outranks the
+ * one sentence the screen exists to say.
+ */
 export function HeroPanel({
   title,
   subtitle,
@@ -65,34 +147,243 @@ export function HeroPanel({
   const palette = toneMap[tone];
   return (
     <View style={[styles.heroPanel, { borderColor: palette.border }]}>
-      <View style={[styles.heroGlow, { backgroundColor: palette.soft }]} />
-      <View style={styles.heroTop}>
-        <View style={styles.heroCopy}>
+      {eyebrow || art ? (
+        <View style={styles.heroTop}>
           {eyebrow ? (
             <View style={[styles.heroEyebrow, { backgroundColor: palette.soft, borderColor: palette.border }]}>
-              <Text style={[styles.heroEyebrowText, { color: palette.ink }]}>{eyebrow}</Text>
+              <Text style={[styles.heroEyebrowText, { color: palette.ink }]} numberOfLines={1}>
+                {eyebrow}
+              </Text>
             </View>
-          ) : null}
-          <Text style={styles.heroTitle}>{title}</Text>
-          {subtitle ? <Text style={styles.heroSubtitle}>{subtitle}</Text> : null}
+          ) : (
+            <View />
+          )}
+          {art ? <View style={styles.heroArt}>{art}</View> : null}
         </View>
-        {art ? <View style={styles.heroArt}>{art}</View> : null}
+      ) : null}
+
+      <View style={styles.heroCopy}>
+        <Text style={styles.heroTitle}>{title}</Text>
+        {subtitle ? <Text style={styles.heroSubtitle}>{subtitle}</Text> : null}
+      </View>
+
+      {children}
+    </View>
+  );
+}
+
+export function SectionBlock({
+  eyebrow,
+  title,
+  action,
+  children,
+}: {
+  eyebrow?: string;
+  title: string;
+  action?: ReactNode;
+  children: ReactNode;
+}) {
+  return (
+    <View style={styles.section}>
+      <View style={styles.sectionTop}>
+        <View style={styles.sectionCopy}>
+          {eyebrow ? <Text style={styles.sectionEyebrow}>{eyebrow}</Text> : null}
+          <Text style={styles.sectionTitle}>{title}</Text>
+        </View>
+        {action}
       </View>
       {children}
     </View>
   );
 }
 
-export function StatRow({ items }: { items: { label: string; value: string }[] }) {
+/** A plain surface. Use instead of hand-rolling a bordered View. */
+export function Card({
+  children,
+  style,
+  tone,
+  padded = true,
+}: {
+  children: ReactNode;
+  style?: StyleProp<ViewStyle>;
+  tone?: Tone;
+  padded?: boolean;
+}) {
+  const palette = tone ? toneMap[tone] : null;
   return (
-    <View style={styles.statRow}>
-      {items.map((item) => (
-        <View key={item.label} style={styles.statCard}>
-          <Text style={styles.statValue}>{item.value}</Text>
-          <Text style={styles.statLabel}>{item.label}</Text>
-        </View>
-      ))}
+    <View
+      style={[
+        styles.card,
+        padded && styles.cardPadded,
+        palette ? { backgroundColor: palette.soft, borderColor: palette.border } : null,
+        style,
+      ]}
+    >
+      {children}
     </View>
+  );
+}
+
+export function Divider() {
+  return <View style={styles.divider} />;
+}
+
+// ---------------------------------------------------------------------------
+// Actions
+// ---------------------------------------------------------------------------
+
+export type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger';
+export type ButtonSize = 'sm' | 'md' | 'lg';
+
+/**
+ * The one button in the app.
+ *
+ * Covers every state the brief calls for: default, hover, pressed, focus,
+ * disabled, and loading. Loading keeps the label mounted and swaps in a
+ * spinner beside it so the control does not resize mid-tap — a button that
+ * changes width under a moving thumb causes mis-taps.
+ */
+export function Button({
+  label,
+  onPress,
+  variant = 'primary',
+  tone = 'orange',
+  buttonSize = 'md',
+  icon,
+  disabled = false,
+  loading = false,
+  fullWidth = true,
+  accessibilityHint,
+  accessibilityLabel,
+  style,
+}: {
+  label: string;
+  onPress?: () => void;
+  variant?: ButtonVariant;
+  tone?: Tone;
+  buttonSize?: ButtonSize;
+  icon?: ReactNode;
+  disabled?: boolean;
+  loading?: boolean;
+  fullWidth?: boolean;
+  accessibilityHint?: string;
+  accessibilityLabel?: string;
+  style?: StyleProp<ViewStyle>;
+}) {
+  const palette = toneMap[variant === 'danger' ? 'red' : tone];
+  const { hovered, focused, handlers } = useInteraction();
+  const isInert = disabled || loading;
+
+  const height =
+    buttonSize === 'sm' ? size.controlSm : buttonSize === 'lg' ? size.controlLg : size.controlMd;
+
+  const filled = variant === 'primary' || variant === 'danger';
+  const background = filled
+    ? palette.fill
+    : variant === 'secondary'
+      ? colors.card
+      : 'transparent';
+  const foreground = filled ? palette.onFill : palette.ink;
+
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel ?? label}
+      accessibilityHint={accessibilityHint}
+      accessibilityState={{ disabled: isInert, busy: loading }}
+      disabled={isInert}
+      onPress={onPress}
+      {...interactionProps(handlers)}
+      style={({ pressed }) => [
+        styles.button,
+        {
+          minHeight: height,
+          backgroundColor: background,
+          borderColor: filled ? palette.fill : variant === 'ghost' ? 'transparent' : colors.borderStrong,
+          paddingHorizontal: buttonSize === 'sm' ? space.md : space.lg,
+        },
+        fullWidth && styles.buttonFullWidth,
+        filled && elevation.sm,
+        hovered && !isInert && (filled ? styles.buttonFilledHover : styles.buttonQuietHover),
+        pressed && !isInert && styles.buttonPressed,
+        isInert && styles.buttonDisabled,
+        focusRingStyle(focused),
+        style,
+      ]}
+    >
+      {loading ? <ActivityIndicator size="small" color={foreground} /> : icon}
+      <Text
+        style={[
+          buttonSize === 'sm' ? styles.buttonLabelSm : styles.buttonLabel,
+          { color: foreground },
+        ]}
+        numberOfLines={1}
+      >
+        {label}
+      </Text>
+    </Pressable>
+  );
+}
+
+/**
+ * The single most important action on a screen.
+ *
+ * Keeps the large pictogram: PRODUCT.md is explicit that this audience reads
+ * icons faster than words, and the icon is what makes the button findable at
+ * a glance in a queue. The icon is sized down from 46 to 32 so it supports
+ * the label instead of overwhelming it.
+ */
+export function PrimaryAction({
+  label,
+  pictogram,
+  onPress,
+  tone = 'orange',
+  disabled = false,
+  loading = false,
+  accessibilityHint,
+}: {
+  label: string;
+  pictogram: PictogramKey;
+  onPress?: () => void;
+  tone?: Tone;
+  disabled?: boolean;
+  loading?: boolean;
+  accessibilityHint?: string;
+}) {
+  const palette = toneMap[tone];
+  const { hovered, focused, handlers } = useInteraction();
+  const isInert = disabled || loading;
+
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      accessibilityHint={accessibilityHint}
+      accessibilityState={{ disabled: isInert, busy: loading }}
+      disabled={isInert}
+      onPress={onPress}
+      {...interactionProps(handlers)}
+      style={({ pressed }) => [
+        styles.primaryAction,
+        { backgroundColor: palette.fill },
+        elevation.sm,
+        hovered && !isInert && styles.buttonFilledHover,
+        pressed && !isInert && styles.primaryActionPressed,
+        isInert && styles.buttonDisabled,
+        focusRingStyle(focused),
+      ]}
+    >
+      <View style={styles.primaryActionIcon}>
+        {loading ? (
+          <ActivityIndicator size="small" color={palette.onFill} />
+        ) : (
+          <Pictogram pictogram={pictogram} tone={tone} size={32} />
+        )}
+      </View>
+      <Text style={[styles.primaryActionText, { color: palette.onFill }]} numberOfLines={1}>
+        {label}
+      </Text>
+    </Pressable>
   );
 }
 
@@ -114,43 +405,34 @@ export function ActionTile({
   accessibilityLabel?: string;
 }) {
   const palette = toneMap[tone];
+  const { hovered, focused, handlers } = useInteraction();
+
   return (
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel ?? label}
       accessibilityHint={hint}
-      style={[styles.actionTile, { backgroundColor: palette.soft, borderColor: palette.border }, style]}
       onPress={onPress}
+      {...interactionProps(handlers)}
+      style={({ pressed }) => [
+        styles.actionTile,
+        { backgroundColor: palette.soft, borderColor: palette.border },
+        hovered && styles.actionTileHover,
+        pressed && styles.actionTilePressed,
+        focusRingStyle(focused),
+        style,
+      ]}
     >
-      <View style={[styles.actionIcon, { backgroundColor: colors.bg }]}>{icon}</View>
-      <Text style={styles.actionLabel}>{label}</Text>
-      {hint ? <Text style={styles.actionHint}>{hint}</Text> : null}
+      <View style={styles.actionIcon}>{icon}</View>
+      <Text style={styles.actionLabel} numberOfLines={2}>
+        {label}
+      </Text>
+      {hint ? (
+        <Text style={styles.actionHint} numberOfLines={1}>
+          {hint}
+        </Text>
+      ) : null}
     </Pressable>
-  );
-}
-
-export function SectionBlock({
-  eyebrow,
-  title,
-  action,
-  children,
-}: {
-  eyebrow?: string;
-  title: string;
-  action?: ReactNode;
-  children: ReactNode;
-}) {
-  return (
-    <View style={styles.section}>
-      <View style={styles.sectionTop}>
-        <View>
-          {eyebrow ? <Text style={styles.sectionEyebrow}>{eyebrow}</Text> : null}
-          <Text style={styles.sectionTitle}>{title}</Text>
-        </View>
-        {action}
-      </View>
-      {children}
-    </View>
   );
 }
 
@@ -161,6 +443,7 @@ export function Chip({
   accessibilityLabel,
   pictogram,
   tone = 'orange',
+  count,
 }: {
   label: string;
   active?: boolean;
@@ -168,12 +451,69 @@ export function Chip({
   accessibilityLabel?: string;
   pictogram?: PictogramKey;
   tone?: Tone;
+  /** Rendered as a separate pill so the count never disappears into the label. */
+  count?: number;
 }) {
+  const { hovered, focused, handlers } = useInteraction();
+
   return (
-    <Pressable accessibilityRole="button" accessibilityLabel={accessibilityLabel ?? label} style={[styles.chip, active && styles.chipActive]} onPress={onPress}>
-      {pictogram ? <Pictogram pictogram={pictogram} tone={tone} size={30} /> : null}
-      <Text style={[styles.chipText, active && styles.chipTextActive]}>{label}</Text>
+    <Pressable
+      accessibilityRole="button"
+      accessibilityState={{ selected: active }}
+      accessibilityLabel={accessibilityLabel ?? label}
+      onPress={onPress}
+      {...interactionProps(handlers)}
+      style={({ pressed }) => [
+        styles.chip,
+        hovered && !active && styles.chipHover,
+        active && styles.chipActive,
+        pressed && styles.chipPressed,
+        focusRingStyle(focused),
+      ]}
+    >
+      {pictogram ? <Pictogram pictogram={pictogram} tone={active ? 'ink' : tone} size={24} /> : null}
+      <Text style={[styles.chipText, active && styles.chipTextActive]} numberOfLines={1}>
+        {label}
+      </Text>
+      {typeof count === 'number' ? (
+        <View style={[styles.chipCount, active && styles.chipCountActive]}>
+          <Text style={[styles.chipCountText, active && styles.chipCountTextActive]}>{count}</Text>
+        </View>
+      ) : null}
     </Pressable>
+  );
+}
+
+/** Non-interactive status marker. Use `Chip` when it can be tapped. */
+export function Badge({ label, tone = 'ink' }: { label: string; tone?: Tone }) {
+  const palette = toneMap[tone];
+  return (
+    <View style={[styles.badge, { backgroundColor: palette.soft, borderColor: palette.border }]}>
+      <Text style={[styles.badgeText, { color: palette.ink }]} numberOfLines={1}>
+        {label}
+      </Text>
+    </View>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Content
+// ---------------------------------------------------------------------------
+
+export function StatRow({ items }: { items: { label: string; value: string }[] }) {
+  return (
+    <View style={styles.statRow}>
+      {items.map((item) => (
+        <View key={item.label} style={styles.statCard} accessibilityLabel={`${item.label}: ${item.value}`}>
+          <Text style={styles.statValue} numberOfLines={1} adjustsFontSizeToFit>
+            {item.value}
+          </Text>
+          <Text style={styles.statLabel} numberOfLines={1}>
+            {item.label}
+          </Text>
+        </View>
+      ))}
+    </View>
   );
 }
 
@@ -197,23 +537,20 @@ export function VisualCard({
   accessibilityLabel?: string;
 }) {
   const visual = getCategoryVisual(subtitle ?? '');
+  const { hovered, focused, handlers } = useInteraction();
+
   const content = (
     <>
       {imageUrl ? (
         <ImageBackground source={{ uri: imageUrl }} style={styles.cardThumb} imageStyle={styles.cardThumbImage}>
           <View style={styles.cardOverlay} />
           <View style={styles.cardPictogram}>
-            <Pictogram pictogram={visual.key} tone={visual.tone} size={32} />
+            <Pictogram pictogram={visual.key} tone={visual.tone} size={26} />
           </View>
-          {badge ? (
-            <View style={styles.cardBadge}>
-              <Text style={styles.cardBadgeText}>{badge}</Text>
-            </View>
-          ) : null}
         </ImageBackground>
       ) : (
         <View style={styles.cardThumbFallback}>
-          <Pictogram pictogram={visual.key} tone={visual.tone} size={50} />
+          <Pictogram pictogram={visual.key} tone={visual.tone} size={44} />
         </View>
       )}
       <View style={styles.visualCardBody}>
@@ -230,15 +567,39 @@ export function VisualCard({
             {meta}
           </Text>
         ) : null}
+        {badge ? (
+          <View style={styles.visualCardBadge}>
+            <Text style={styles.visualCardBadgeText} numberOfLines={1}>
+              {badge}
+            </Text>
+          </View>
+        ) : null}
       </View>
     </>
   );
 
+  const interactiveStyle = ({ pressed }: { pressed: boolean }) => [
+    styles.visualCard,
+    hovered && styles.visualCardHover,
+    pressed && styles.visualCardPressed,
+    focusRingStyle(focused),
+  ];
+
   if (right) {
     return (
-      <View style={styles.visualCard}>
+      <View style={[styles.visualCard, styles.visualCardSplit]}>
         {onPress ? (
-          <Pressable accessibilityRole="button" accessibilityLabel={accessibilityLabel ?? title} style={styles.visualCardMain} onPress={onPress}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={accessibilityLabel ?? title}
+            onPress={onPress}
+            {...interactionProps(handlers)}
+            style={({ pressed }) => [
+              styles.visualCardMain,
+              pressed && styles.visualCardPressed,
+              focusRingStyle(focused),
+            ]}
+          >
             {content}
           </Pressable>
         ) : (
@@ -250,241 +611,475 @@ export function VisualCard({
   }
 
   return (
-    <Pressable accessibilityRole="button" accessibilityLabel={accessibilityLabel ?? title} style={styles.visualCard} onPress={onPress}>
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel ?? title}
+      onPress={onPress}
+      {...interactionProps(handlers)}
+      style={interactiveStyle}
+    >
       {content}
     </Pressable>
   );
 }
 
-export function PrimaryAction({
-  label,
+export function MetaPill({
   pictogram,
-  onPress,
-  tone = 'orange',
-  disabled = false,
-  accessibilityHint,
+  tone = 'ink',
+  label,
+  value,
 }: {
-  label: string;
   pictogram: PictogramKey;
-  onPress?: () => void;
   tone?: Tone;
-  disabled?: boolean;
-  accessibilityHint?: string;
+  label: string;
+  value: string;
 }) {
-  const palette = toneMap[tone];
-  return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={label}
-      accessibilityHint={accessibilityHint}
-      accessibilityState={{ disabled }}
-      disabled={disabled}
-      onPress={onPress}
-      style={({ pressed }) => [
-        styles.primaryAction,
-        { backgroundColor: palette.tint, borderColor: palette.ink },
-        pressed && !disabled && styles.primaryActionPressed,
-        disabled && styles.primaryActionDisabled,
-      ]}
-    >
-      <View style={styles.primaryActionIcon}>
-        <Pictogram pictogram={pictogram} tone={tone} size={46} />
-      </View>
-      <Text style={[styles.primaryActionText, { color: tone === 'ink' ? colors.ivory : colors.black }]}>{label}</Text>
-    </Pressable>
-  );
-}
-
-export function MetaPill({ pictogram, tone = 'ink', label, value }: { pictogram: PictogramKey; tone?: Tone; label: string; value: string }) {
   return (
     <View style={styles.metaPill} accessibilityLabel={`${label}: ${value}`}>
-      <Pictogram pictogram={pictogram} tone={tone} size={38} />
+      <Pictogram pictogram={pictogram} tone={tone} size={32} />
       <View style={styles.metaPillCopy}>
-        <Text style={styles.metaPillLabel}>{label}</Text>
-        <Text style={styles.metaPillValue} numberOfLines={2}>{value}</Text>
+        <Text style={styles.metaPillLabel} numberOfLines={1}>
+          {label}
+        </Text>
+        <Text style={styles.metaPillValue} numberOfLines={2}>
+          {value}
+        </Text>
       </View>
     </View>
   );
 }
 
-export function ProgressBar({ value, total, tone = 'orange' }: { value: number; total: number; tone?: Tone }) {
+export function ProgressBar({
+  value,
+  total,
+  tone = 'orange',
+  label,
+}: {
+  value: number;
+  total: number;
+  tone?: Tone;
+  label?: string;
+}) {
   const ratio = total > 0 ? Math.max(0, Math.min(1, value / total)) : 0;
   return (
-    <View style={styles.progressTrack}>
-      <View style={[styles.progressFill, { width: `${ratio * 100}%`, backgroundColor: toneMap[tone].tint }]} />
+    <View
+      accessibilityRole="progressbar"
+      accessibilityValue={{ min: 0, max: total, now: value }}
+      accessibilityLabel={label}
+      style={styles.progressTrack}
+    >
+      <View style={[styles.progressFill, { width: `${ratio * 100}%`, backgroundColor: toneMap[tone].fill }]} />
     </View>
   );
 }
 
-export function InlineScroll({ children, contentContainerStyle }: { children: ReactNode; contentContainerStyle?: StyleProp<ViewStyle> }) {
+export function InlineScroll({
+  children,
+  contentContainerStyle,
+}: {
+  children: ReactNode;
+  contentContainerStyle?: StyleProp<ViewStyle>;
+}) {
   return (
-    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={[styles.inlineScrollContent, contentContainerStyle]}>
+    <ScrollView
+      horizontal
+      showsHorizontalScrollIndicator={false}
+      contentContainerStyle={[styles.inlineScrollContent, contentContainerStyle]}
+    >
       {children}
     </ScrollView>
   );
 }
 
+// ---------------------------------------------------------------------------
+// States
+// ---------------------------------------------------------------------------
+
+/**
+ * Loading placeholder.
+ *
+ * Every screen previously rendered hard-coded demo data while its real
+ * request was in flight, so content silently changed under the user a second
+ * after it appeared. A skeleton says "this is still arriving" instead of
+ * lying about the answer.
+ */
+export function Skeleton({
+  height = 16,
+  width = '100%',
+  rounded = radius.sm,
+  style,
+}: {
+  height?: number;
+  width?: number | `${number}%`;
+  rounded?: number;
+  style?: StyleProp<ViewStyle>;
+}) {
+  const pulse = useRef(new Animated.Value(0.5)).current;
+
+  useEffect(() => {
+    const animation = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulse, {
+          toValue: 1,
+          duration: 700,
+          easing: Easing.inOut(Easing.quad),
+          useNativeDriver: true,
+        }),
+        Animated.timing(pulse, {
+          toValue: 0.5,
+          duration: 700,
+          easing: Easing.inOut(Easing.quad),
+          useNativeDriver: true,
+        }),
+      ]),
+    );
+    animation.start();
+    return () => animation.stop();
+  }, [pulse]);
+
+  return (
+    <Animated.View
+      accessibilityElementsHidden
+      importantForAccessibility="no-hide-descendants"
+      style={[{ height, width, borderRadius: rounded, backgroundColor: colors.skeleton, opacity: pulse }, style]}
+    />
+  );
+}
+
+/** Skeleton shaped like a `VisualCard`, so lists do not jump when data lands. */
+export function SkeletonCard() {
+  return (
+    <View style={[styles.visualCard, styles.skeletonCard]}>
+      <Skeleton height={72} width={72} rounded={radius.md} />
+      <View style={styles.skeletonBody}>
+        <Skeleton height={18} width="80%" />
+        <Skeleton height={14} width="45%" />
+        <Skeleton height={14} width="60%" />
+      </View>
+    </View>
+  );
+}
+
+/**
+ * Empty state. Always carries one obvious next action — DESIGN.md requires
+ * it and an empty screen with no exit is the fastest way to lose someone who
+ * is not confident reading.
+ */
+export function EmptyState({
+  art,
+  title,
+  action,
+}: {
+  art?: ReactNode;
+  title: string;
+  action?: ReactNode;
+}) {
+  return (
+    <View style={styles.stateCard}>
+      {art}
+      <Text style={styles.stateTitle}>{title}</Text>
+      {action}
+    </View>
+  );
+}
+
+/**
+ * Error state.
+ *
+ * Screens used to call `.then(setState)` with no `.catch()`, so a failed
+ * request left stale demo data on screen forever. This gives that failure
+ * somewhere to go, and always offers a retry.
+ */
+export function ErrorState({
+  title = 'Ça n’a pas marché',
+  onRetry,
+  retryLabel = 'Réessayer',
+}: {
+  title?: string;
+  onRetry?: () => void;
+  retryLabel?: string;
+}) {
+  return (
+    <View style={[styles.stateCard, styles.errorCard]}>
+      <Pictogram pictogram="help" tone="red" size={64} />
+      <Text style={styles.stateTitle}>{title}</Text>
+      {onRetry ? (
+        <Button label={retryLabel} onPress={onRetry} variant="secondary" fullWidth={false} buttonSize="sm" />
+      ) : null}
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
-  backgroundFrame: {
-    overflow: 'hidden',
+  // --- Structure ---------------------------------------------------------
+  headerRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: space.md,
   },
-  orbTop: {
-    position: 'absolute',
-    top: -110,
-    right: -80,
-    width: 260,
-    height: 260,
-    borderRadius: 260,
-    backgroundColor: 'rgba(242,100,59,0.12)',
-  },
-  orbBottom: {
-    position: 'absolute',
-    bottom: 80,
-    left: -120,
-    width: 280,
-    height: 280,
-    borderRadius: 280,
-    backgroundColor: 'rgba(246,195,91,0.15)',
-  },
-  grid: {
-    ...StyleSheet.absoluteFill,
-    backgroundColor: 'rgba(255,255,255,0.01)',
-    borderTopWidth: 1,
-    borderColor: 'rgba(17,17,17,0.03)',
-  },
-  headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 },
-  headerCopy: { flex: 1, gap: 6 },
-  eyebrow: {
-    fontFamily: typography.fontFamily.semiBold,
-    fontSize: typography.fontSize.sm,
-    letterSpacing: 1.2,
-    textTransform: 'uppercase',
-    color: colors.textMuted,
-  },
-  headerTitle: { fontFamily: typography.fontFamily.bold, fontSize: typography.fontSize['3xl'], lineHeight: 40, color: colors.text },
+  headerCopy: { flex: 1, gap: space.xs },
+  eyebrow: { ...typography.text.eyebrow, color: colors.textMuted },
+  headerTitle: { ...typography.text.title, color: colors.text },
+
   heroPanel: {
     overflow: 'hidden',
-    borderRadius: 28,
-    borderWidth: 1,
+    borderRadius: radius.xxl,
+    borderWidth: stroke.hairline,
     backgroundColor: colors.card,
-    padding: 20,
-    gap: 16,
-    ...shadow({ color: '#000', opacity: 0.12, radius: 24, offset: { width: 0, height: 10 }, elevation: 8 }),
+    padding: space.xl,
+    gap: space.lg,
+    ...elevation.sm,
   },
-  heroGlow: { position: 'absolute', right: -28, top: -18, width: 160, height: 160, borderRadius: 160 },
-  heroTop: { flexDirection: 'row', justifyContent: 'space-between', gap: 16 },
-  heroCopy: { flex: 1, gap: 10 },
-  heroEyebrow: { alignSelf: 'flex-start', paddingHorizontal: 12, paddingVertical: 7, borderRadius: 999, borderWidth: 1 },
-  heroEyebrowText: { fontFamily: typography.fontFamily.semiBold, fontSize: typography.fontSize.xs, letterSpacing: 1.3, textTransform: 'uppercase' },
-  heroTitle: { fontFamily: typography.fontFamily.bold, fontSize: typography.fontSize['2xl'], lineHeight: 34, color: colors.text },
-  heroSubtitle: { fontFamily: typography.fontFamily.medium, fontSize: typography.fontSize.sm, lineHeight: 20, color: colors.textSecondary },
-  heroArt: { minWidth: 72, alignItems: 'center', justifyContent: 'center' },
-  statRow: { flexDirection: 'row', gap: 10, flexWrap: 'wrap' },
-  statCard: {
-    minWidth: 90,
-    flexGrow: 1,
-    borderRadius: 20,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    backgroundColor: colors.cardStrong,
-    borderWidth: 1,
+  heroTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: space.md,
+  },
+  // Full width: the title is the point of the panel, not the illustration.
+  heroCopy: { gap: space.sm },
+  heroEyebrow: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: space.md,
+    paddingVertical: space.xs + 2,
+    borderRadius: radius.pill,
+    borderWidth: stroke.hairline,
+    flexShrink: 1,
+  },
+  heroEyebrowText: typography.text.eyebrow,
+  heroTitle: { ...typography.text.display, fontSize: typography.fontSize['2xl'], lineHeight: 36, color: colors.text },
+  heroSubtitle: { ...typography.text.body, color: colors.textSecondary },
+  heroArt: { alignItems: 'center', justifyContent: 'center' },
+
+  section: { gap: space.md },
+  sectionTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-end',
+    gap: space.md,
+  },
+  sectionCopy: { flex: 1, gap: space.xxs },
+  sectionEyebrow: { ...typography.text.eyebrow, color: colors.textMuted },
+  sectionTitle: { ...typography.text.heading, color: colors.text },
+
+  card: {
+    borderRadius: radius.lg,
+    borderWidth: stroke.hairline,
     borderColor: colors.border,
-    gap: 3,
+    backgroundColor: colors.card,
+    ...elevation.sm,
   },
-  statValue: { fontFamily: typography.fontFamily.bold, fontSize: typography.fontSize.lg, color: colors.text },
-  statLabel: { fontFamily: typography.fontFamily.medium, fontSize: typography.fontSize.sm, color: colors.textMuted },
+  cardPadded: { padding: space.lg },
+  divider: { height: stroke.hairline, backgroundColor: colors.border },
+
+  // --- Actions -----------------------------------------------------------
+  button: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: space.sm,
+    borderRadius: radius.md,
+    borderWidth: stroke.hairline,
+  },
+  buttonFullWidth: { alignSelf: 'stretch' },
+  buttonLabel: { ...typography.text.action },
+  buttonLabelSm: { ...typography.text.label },
+  buttonFilledHover: { opacity: 0.92 },
+  buttonQuietHover: { backgroundColor: colors.cardHover },
+  buttonPressed: { opacity: opacity.pressed, transform: [{ scale: 0.985 }] },
+  buttonDisabled: { opacity: opacity.disabled },
+
+  primaryAction: {
+    minHeight: size.controlLg,
+    borderRadius: radius.lg,
+    paddingHorizontal: space.lg,
+    paddingVertical: space.sm,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: space.md,
+  },
+  primaryActionPressed: { transform: [{ scale: 0.985 }], opacity: opacity.pressed },
+  primaryActionIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: radius.md,
+    backgroundColor: 'rgba(255,255,255,0.82)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  primaryActionText: { ...typography.text.action, fontSize: typography.fontSize.md, flexShrink: 1 },
+
   actionTile: {
-    minWidth: 108,
-    minHeight: 128,
-    borderRadius: 24,
-    borderWidth: 1,
-    padding: 14,
-    gap: 10,
+    minWidth: 104,
+    minHeight: 124,
+    borderRadius: radius.lg,
+    borderWidth: stroke.hairline,
+    padding: space.md,
+    gap: space.sm,
+    justifyContent: 'center',
   },
-  actionIcon: { width: 50, height: 50, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
-  actionLabel: { fontFamily: typography.fontFamily.bold, fontSize: typography.fontSize.base, color: colors.text },
-  actionHint: { fontFamily: typography.fontFamily.medium, fontSize: typography.fontSize.xs, color: colors.textMuted },
-  section: { gap: 14 },
-  sectionTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', gap: 12 },
-  sectionEyebrow: {
-    fontFamily: typography.fontFamily.semiBold,
-    fontSize: typography.fontSize.xs,
-    color: colors.textMuted,
-    textTransform: 'uppercase',
-    letterSpacing: 1.8,
-    marginBottom: 4,
+  actionTileHover: { transform: [{ translateY: -2 }] },
+  actionTilePressed: { opacity: opacity.pressed, transform: [{ scale: 0.985 }] },
+  actionIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: radius.md,
+    backgroundColor: colors.bg,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  sectionTitle: { fontFamily: typography.fontFamily.bold, fontSize: typography.fontSize.xl, color: colors.text },
+  actionLabel: { ...typography.text.subheading, fontSize: typography.fontSize.base, color: colors.text },
+  actionHint: { ...typography.text.meta, color: colors.textMuted },
+
   chip: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 7,
-    borderRadius: 999,
-    paddingHorizontal: 14,
-    minHeight: 48,
-    paddingVertical: 12,
-    borderWidth: 1,
+    gap: space.sm,
+    borderRadius: radius.pill,
+    paddingHorizontal: space.lg,
+    minHeight: size.touchMin,
+    paddingVertical: space.sm,
+    borderWidth: stroke.hairline,
     borderColor: colors.borderStrong,
     backgroundColor: colors.card,
     justifyContent: 'center',
   },
+  chipHover: { backgroundColor: colors.cardHover },
   chipActive: { backgroundColor: colors.orange, borderColor: colors.orange },
-  chipText: { fontFamily: typography.fontFamily.medium, fontSize: typography.fontSize.sm, color: colors.textSecondary },
-  chipTextActive: { color: colors.black },
+  chipPressed: { opacity: opacity.pressed },
+  chipText: { ...typography.text.label, color: colors.textSecondary },
+  chipTextActive: { color: colors.onAccent },
+  chipCount: {
+    minWidth: 22,
+    paddingHorizontal: space.xs + 2,
+    paddingVertical: 1,
+    borderRadius: radius.pill,
+    backgroundColor: colors.surfaceSunken,
+    alignItems: 'center',
+  },
+  chipCountActive: { backgroundColor: 'rgba(23,19,15,0.16)' },
+  chipCountText: { ...typography.text.caption, color: colors.textSecondary },
+  chipCountTextActive: { color: colors.onAccent },
+
+  badge: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: space.sm + 2,
+    paddingVertical: space.xs,
+    borderRadius: radius.pill,
+    borderWidth: stroke.hairline,
+  },
+  badgeText: typography.text.caption,
+
+  // --- Content -----------------------------------------------------------
+  statRow: { flexDirection: 'row', gap: space.sm, flexWrap: 'wrap' },
+  statCard: {
+    minWidth: 88,
+    flexGrow: 1,
+    flexBasis: 0,
+    borderRadius: radius.md,
+    paddingHorizontal: space.md,
+    paddingVertical: space.md,
+    backgroundColor: colors.surfaceSunken,
+    gap: space.xxs,
+  },
+  statValue: { ...typography.text.number, color: colors.text },
+  statLabel: { ...typography.text.meta, color: colors.textSecondary },
+
   visualCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: space.md,
     minHeight: 96,
-    borderRadius: 24,
-    borderWidth: 1,
+    borderRadius: radius.lg,
+    borderWidth: stroke.hairline,
     borderColor: colors.border,
     backgroundColor: colors.card,
-    padding: 10,
+    padding: space.md,
+    ...elevation.sm,
   },
-  visualCardMain: {
+  visualCardSplit: { gap: space.sm },
+  visualCardHover: { borderColor: colors.borderStrong, transform: [{ translateY: -2 }] },
+  visualCardPressed: { opacity: opacity.pressed },
+  visualCardMain: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: space.md },
+  visualCardRight: { alignItems: 'center', justifyContent: 'center' },
+  cardThumb: { width: 72, height: 72, borderRadius: radius.md, overflow: 'hidden' },
+  cardThumbImage: { borderRadius: radius.md },
+  cardOverlay: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(23,19,15,0.12)' },
+  cardPictogram: {
+    position: 'absolute',
+    right: 3,
+    bottom: 3,
+    borderRadius: radius.pill,
+    backgroundColor: 'rgba(255,255,255,0.92)',
+  },
+  cardThumbFallback: {
+    width: 72,
+    height: 72,
+    borderRadius: radius.md,
+    backgroundColor: colors.surfaceSunken,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  visualCardBody: { flex: 1, gap: space.xxs },
+  visualCardTitle: { ...typography.text.subheading, color: colors.text },
+  // Was `colors.orange` at 3.15:1 against white — below the AA floor.
+  visualCardSubtitle: { ...typography.text.meta, color: colors.orangeInk },
+  visualCardMeta: { ...typography.text.meta, color: colors.textMuted },
+  visualCardBadge: {
+    alignSelf: 'flex-start',
+    marginTop: space.xxs,
+    paddingHorizontal: space.sm,
+    paddingVertical: 2,
+    borderRadius: radius.pill,
+    backgroundColor: colors.surfaceSunken,
+  },
+  visualCardBadgeText: { ...typography.text.caption, color: colors.text },
+
+  metaPill: {
     flex: 1,
-    minHeight: 76,
+    minWidth: 148,
+    minHeight: 68,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: space.sm,
+    padding: space.md,
+    borderRadius: radius.md,
+    backgroundColor: colors.card,
+    borderWidth: stroke.hairline,
+    borderColor: colors.border,
   },
-  visualCardRight: {
+  metaPillCopy: { flex: 1, gap: space.xxs },
+  metaPillLabel: { ...typography.text.caption, color: colors.textMuted },
+  metaPillValue: { ...typography.text.label, color: colors.text },
+
+  progressTrack: {
+    height: 10,
+    borderRadius: radius.pill,
+    backgroundColor: colors.surfaceSunken,
+    overflow: 'hidden',
+  },
+  progressFill: { height: '100%', borderRadius: radius.pill },
+  inlineScrollContent: { gap: space.sm, paddingRight: space.sm, paddingVertical: 2 },
+
+  // --- States ------------------------------------------------------------
+  skeletonCard: { ...elevation.flat },
+  skeletonBody: { flex: 1, gap: space.sm },
+  stateCard: {
+    minHeight: 200,
+    padding: space.xl,
+    borderRadius: radius.lg,
+    borderWidth: stroke.hairline,
+    borderColor: colors.border,
+    backgroundColor: colors.card,
     alignItems: 'center',
     justifyContent: 'center',
+    gap: space.md,
   },
-  cardThumb: { width: 78, height: 78, borderRadius: 20, overflow: 'hidden', justifyContent: 'space-between' },
-  cardThumbImage: { borderRadius: 20 },
-  cardOverlay: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(17,17,17,0.18)' },
-  cardBadge: { alignSelf: 'flex-start', margin: 8, paddingHorizontal: 9, paddingVertical: 5, borderRadius: 999, backgroundColor: 'rgba(255,255,255,0.88)' },
-  cardBadgeText: { fontFamily: typography.fontFamily.semiBold, fontSize: 10, color: colors.text },
-  cardPictogram: { position: 'absolute', right: 6, bottom: 6, borderRadius: 999, backgroundColor: 'rgba(255,255,255,0.88)' },
-  cardThumbFallback: { width: 78, height: 78, borderRadius: 20, backgroundColor: colors.cardHover, alignItems: 'center', justifyContent: 'center' },
-  visualCardBody: { flex: 1, gap: 4 },
-  visualCardTitle: { fontFamily: typography.fontFamily.semiBold, fontSize: typography.fontSize.base, color: colors.text },
-  visualCardSubtitle: { fontFamily: typography.fontFamily.medium, fontSize: typography.fontSize.sm, color: colors.orange },
-  visualCardMeta: { fontFamily: typography.fontFamily.medium, fontSize: typography.fontSize.sm, color: colors.textMuted },
-  progressTrack: { height: 8, borderRadius: 999, backgroundColor: colors.cardHover, overflow: 'hidden' },
-  progressFill: { height: '100%', borderRadius: 999 },
-  inlineScrollContent: { gap: 8, paddingRight: 8 },
-  primaryAction: {
-    minHeight: 64,
-    borderRadius: 22,
-    borderWidth: 1,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 12,
-    ...shadow({ color: '#000', opacity: 0.14, radius: 16, offset: { width: 0, height: 8 }, elevation: 6 }),
-  },
-  primaryActionPressed: { transform: [{ scale: 0.98 }], opacity: 0.94 },
-  primaryActionDisabled: { opacity: 0.48 },
-  primaryActionIcon: { width: 48, height: 48, borderRadius: 18, backgroundColor: 'rgba(255,255,255,0.78)', alignItems: 'center', justifyContent: 'center' },
-  primaryActionText: { fontFamily: typography.fontFamily.bold, fontSize: typography.fontSize.lg },
-  metaPill: { flex: 1, minWidth: 142, minHeight: 68, flexDirection: 'row', alignItems: 'center', gap: 9, padding: 10, borderRadius: 20, backgroundColor: colors.cardStrong, borderWidth: 1, borderColor: colors.border },
-  metaPillCopy: { flex: 1, gap: 1 },
-  metaPillLabel: { fontFamily: typography.fontFamily.medium, fontSize: typography.fontSize.xs, color: colors.textMuted },
-  metaPillValue: { fontFamily: typography.fontFamily.semiBold, fontSize: typography.fontSize.sm, color: colors.text },
+  errorCard: { backgroundColor: colors.errorSurface, borderColor: 'rgba(184,28,35,0.22)' },
+  stateTitle: { ...typography.text.subheading, color: colors.text, textAlign: 'center' },
 });
+
+/** Re-exported so screens can reference motion timings without a second import. */
+export { duration as motionDuration };

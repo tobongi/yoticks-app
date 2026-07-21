@@ -67,13 +67,36 @@ function Glyph({ pictogram, palette }: { pictogram: PictogramKey; palette: (type
   }
 }
 
-export function Pictogram({ pictogram, tone = 'orange', size = 64, label }: { pictogram: PictogramKey; tone?: VisualTone; size?: number; label?: string }) {
+/**
+ * A pictogram in its tinted badge.
+ *
+ * Two things were removed here. A decorative dot was hard-coded at
+ * (48, 13) on *every* glyph regardless of meaning — it collided with the
+ * bell, the ticket, and the moon, and it read as noise rather than as part
+ * of any symbol. The badge behind the glyph was also a diagonal gradient;
+ * it is now a flat tint, which is calmer, renders identically on cheap GPUs,
+ * and drops one `<Defs>` per icon instance.
+ *
+ * `plain` skips the badge for icons that already sit inside a coloured
+ * container, so tints do not stack up and muddy each other.
+ */
+export function Pictogram({
+  pictogram,
+  tone = 'orange',
+  size = 64,
+  label,
+  plain = false,
+}: {
+  pictogram: PictogramKey;
+  tone?: VisualTone;
+  size?: number;
+  label?: string;
+  plain?: boolean;
+}) {
   const palette = tones[tone];
   return (
     <Svg accessibilityRole={label ? 'image' : undefined} accessibilityLabel={label} aria-hidden={label ? undefined : true} width={size} height={size} viewBox="0 0 64 64">
-      <Defs><LinearGradient id={`wash-${pictogram}-${tone}`} x1="0" y1="0" x2="1" y2="1"><Stop offset="0" stopColor={palette.soft}/><Stop offset="1" stopColor={palette.mid} stopOpacity="0.34"/></LinearGradient></Defs>
-      <Circle cx="32" cy="32" r="31" fill={`url(#wash-${pictogram}-${tone})`}/>
-      <Circle cx="48" cy="13" r="8" fill={palette.mid} opacity="0.3"/>
+      {plain ? null : <Circle cx="32" cy="32" r="31" fill={palette.soft}/>}
       <Glyph pictogram={pictogram} palette={palette}/>
     </Svg>
   );

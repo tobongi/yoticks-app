@@ -1,8 +1,7 @@
 import { useEffect, useState } from 'react';
-import { Alert, Linking, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Alert, Linking, Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { router } from 'expo-router';
 import Constants from 'expo-constants';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { updateProfile } from '../src/backend';
 import { useAuth } from '../src/auth';
 import { useI18n } from '../src/i18n';
@@ -10,8 +9,9 @@ import { ensureNotificationPermissions, getNotificationPermissionStatus } from '
 import { ArrowLeftIcon, ChevronRightIcon } from '../src/icons';
 import { colors } from '../src/theme/colors';
 import { typography } from '../src/theme/typography';
-import { Chip, LivedBackground, ScreenHeader, SectionBlock } from '../src/ui/lived-in';
+import { Chip, ScreenHeader, SectionBlock } from '../src/ui/lived-in';
 import { Pictogram, StatusSeal } from '../src/ui/pictograms';
+import { Screen } from '../src/ui/screen';
 
 export default function SettingsScreen() {
   const auth = useAuth();
@@ -67,79 +67,74 @@ export default function SettingsScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <LivedBackground />
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <Pressable accessibilityRole="button" accessibilityLabel="Retour" style={styles.back} onPress={() => router.back()}>
-          <ArrowLeftIcon size={16} color={colors.orange} /><Text style={styles.backText}>Retour</Text>
+    <Screen bleed>
+      <Pressable accessibilityRole="button" accessibilityLabel="Retour" style={styles.back} onPress={() => router.back()}>
+        <ArrowLeftIcon size={16} color={colors.orangeInk} /><Text style={styles.backText}>Retour</Text>
+      </Pressable>
+      <ScreenHeader eyebrow="Compte" title="Réglages" side={<Pictogram pictogram="profile" tone="blue" size={62} />} />
+
+      <SectionBlock eyebrow="Identité" title="Mon compte">
+        <View style={styles.formCard}>
+          <Text style={styles.label}>Nom</Text>
+          <TextInput accessibilityLabel="Nom" style={styles.input} value={name} onChangeText={setName} autoComplete="name" />
+          <Text style={styles.label}>Email</Text>
+          <TextInput accessibilityLabel="Email" style={styles.input} value={email} onChangeText={setEmail} autoCapitalize="none" keyboardType="email-address" autoComplete="email" />
+          {notice ? <Text accessibilityRole="alert" style={styles.notice}>{notice}</Text> : null}
+          <Pressable accessibilityRole="button" style={styles.primaryButton} disabled={saving} onPress={() => void saveProfile()}>
+            <Text style={styles.primaryButtonText}>{saving ? 'Enregistrement...' : 'Enregistrer'}</Text>
+          </Pressable>
+        </View>
+      </SectionBlock>
+
+      <SectionBlock eyebrow="Préférences" title="Sur ce téléphone">
+        <View style={styles.settingCard}>
+          <View style={styles.settingIcon}><Pictogram pictogram="talk" tone="blue" size={46} /></View>
+          <View style={styles.settingBody}><Text style={styles.settingTitle}>Langue</Text><Text style={styles.settingCopy}>Français ou English</Text></View>
+          <View style={styles.chips}><Chip label="FR" active={locale === 'fr'} onPress={() => setLocale('fr')} /><Chip label="EN" active={locale === 'en'} onPress={() => setLocale('en')} /></View>
+        </View>
+        <Pressable accessibilityRole="button" style={styles.settingCard} onPress={() => void enableNotifications()}>
+          <View style={styles.settingIcon}><Pictogram pictogram="bell" size={46} /></View>
+          <View style={styles.settingBody}><Text style={styles.settingTitle}>Alertes</Text><Text style={styles.settingCopy}>{notificationStatus === 'granted' ? 'Activées' : notificationStatus === 'denied' ? 'Bloquées' : 'Désactivées'}</Text></View>
+          <ChevronRightIcon size={16} color={colors.textMuted} />
         </Pressable>
-        <ScreenHeader eyebrow="Compte" title="Réglages" side={<Pictogram pictogram="profile" tone="blue" size={62} />} />
+      </SectionBlock>
 
-        <SectionBlock eyebrow="Identité" title="Mon compte">
-          <View style={styles.formCard}>
-            <Text style={styles.label}>Nom</Text>
-            <TextInput accessibilityLabel="Nom" style={styles.input} value={name} onChangeText={setName} autoComplete="name" />
-            <Text style={styles.label}>Email</Text>
-            <TextInput accessibilityLabel="Email" style={styles.input} value={email} onChangeText={setEmail} autoCapitalize="none" keyboardType="email-address" autoComplete="email" />
-            {notice ? <Text accessibilityRole="alert" style={styles.notice}>{notice}</Text> : null}
-            <Pressable accessibilityRole="button" style={styles.primaryButton} disabled={saving} onPress={() => void saveProfile()}>
-              <Text style={styles.primaryButtonText}>{saving ? 'Enregistrement...' : 'Enregistrer'}</Text>
-            </Pressable>
-          </View>
-        </SectionBlock>
+      <SectionBlock eyebrow="Confiance" title="Aide et données">
+        <Pressable accessibilityRole="button" style={styles.settingCard} onPress={() => router.push('/legal' as never)}>
+          <View style={styles.settingIcon}><Pictogram pictogram="help" tone="blue" size={46} /></View>
+          <View style={styles.settingBody}><Text style={styles.settingTitle}>Aide et confidentialité</Text><Text style={styles.settingCopy}>Support et règles</Text></View>
+          <ChevronRightIcon size={16} color={colors.textMuted} />
+        </Pressable>
+        <Text style={styles.version}>YoTicks {Constants.expoConfig?.version ?? '1.0.0'}</Text>
+      </SectionBlock>
 
-        <SectionBlock eyebrow="Préférences" title="Sur ce téléphone">
-          <View style={styles.settingCard}>
-            <View style={styles.settingIcon}><Pictogram pictogram="talk" tone="blue" size={46} /></View>
-            <View style={styles.settingBody}><Text style={styles.settingTitle}>Langue</Text><Text style={styles.settingCopy}>Français ou English</Text></View>
-            <View style={styles.chips}><Chip label="FR" active={locale === 'fr'} onPress={() => setLocale('fr')} /><Chip label="EN" active={locale === 'en'} onPress={() => setLocale('en')} /></View>
-          </View>
-          <Pressable accessibilityRole="button" style={styles.settingCard} onPress={() => void enableNotifications()}>
-            <View style={styles.settingIcon}><Pictogram pictogram="bell" size={46} /></View>
-            <View style={styles.settingBody}><Text style={styles.settingTitle}>Alertes</Text><Text style={styles.settingCopy}>{notificationStatus === 'granted' ? 'Activées' : notificationStatus === 'denied' ? 'Bloquées' : 'Désactivées'}</Text></View>
-            <ChevronRightIcon size={16} color={colors.textMuted} />
-          </Pressable>
-        </SectionBlock>
+      <View style={styles.dangerCard}>
+        <StatusSeal pictogram="blocked" tone="red" label="Supprimer" size={64} />
+        <Text style={styles.dangerTitle}>Supprimer mon compte</Text>
+        <Text style={styles.dangerCopy}>Efface définitivement le profil et les billets.</Text>
+        <Pressable accessibilityRole="button" style={styles.deleteButton} onPress={() => setDeleteVisible(true)}><Text style={styles.deleteText}>Supprimer définitivement</Text></Pressable>
+      </View>
 
-        <SectionBlock eyebrow="Confiance" title="Aide et données">
-          <Pressable accessibilityRole="button" style={styles.settingCard} onPress={() => router.push('/legal' as never)}>
-            <View style={styles.settingIcon}><Pictogram pictogram="help" tone="blue" size={46} /></View>
-            <View style={styles.settingBody}><Text style={styles.settingTitle}>Aide et confidentialité</Text><Text style={styles.settingCopy}>Support et règles</Text></View>
-            <ChevronRightIcon size={16} color={colors.textMuted} />
-          </Pressable>
-          <Text style={styles.version}>YoTicks {Constants.expoConfig?.version ?? '1.0.0'}</Text>
-        </SectionBlock>
-
-        <View style={styles.dangerCard}>
-          <StatusSeal pictogram="blocked" tone="red" label="Supprimer" size={64} />
-          <Text style={styles.dangerTitle}>Supprimer mon compte</Text>
-          <Text style={styles.dangerCopy}>Efface définitivement le profil et les billets.</Text>
-          <Pressable accessibilityRole="button" style={styles.deleteButton} onPress={() => setDeleteVisible(true)}><Text style={styles.deleteText}>Supprimer définitivement</Text></Pressable>
-        </View>
-      </ScrollView>
-
-      <Modal visible={deleteVisible} transparent animationType="fade" onRequestClose={() => setDeleteVisible(false)}>
-        <View style={styles.modalBackdrop}>
-          <View style={styles.modalCard}>
-            <Text style={styles.modalTitle}>Confirmer la suppression</Text>
-            <Text style={styles.dangerCopy}>Entre ton mot de passe. Cette action est définitive.</Text>
-            <TextInput accessibilityLabel="Mot de passe actuel" style={styles.input} value={deletePassword} onChangeText={setDeletePassword} placeholder="Mot de passe actuel" placeholderTextColor={colors.textMuted} secureTextEntry />
-            <View style={styles.modalActions}>
-              <Pressable accessibilityRole="button" accessibilityLabel="Annuler la suppression" style={styles.cancelButton} onPress={() => setDeleteVisible(false)}><Text style={styles.cancelText}>Annuler</Text></Pressable>
-              <Pressable accessibilityRole="button" accessibilityLabel="Supprimer définitivement mon compte" accessibilityState={{ disabled: deleting || !deletePassword, busy: deleting }} style={styles.confirmDeleteButton} disabled={deleting || !deletePassword} onPress={() => void confirmDelete()}><Text style={styles.confirmDeleteText}>{deleting ? 'Suppression...' : 'Supprimer'}</Text></Pressable>
-            </View>
+    <Modal visible={deleteVisible} transparent animationType="fade" onRequestClose={() => setDeleteVisible(false)}>
+      <View style={styles.modalBackdrop}>
+        <View style={styles.modalCard}>
+          <Text style={styles.modalTitle}>Confirmer la suppression</Text>
+          <Text style={styles.dangerCopy}>Entre ton mot de passe. Cette action est définitive.</Text>
+          <TextInput accessibilityLabel="Mot de passe actuel" style={styles.input} value={deletePassword} onChangeText={setDeletePassword} placeholder="Mot de passe actuel" placeholderTextColor={colors.textMuted} secureTextEntry />
+          <View style={styles.modalActions}>
+            <Pressable accessibilityRole="button" accessibilityLabel="Annuler la suppression" style={styles.cancelButton} onPress={() => setDeleteVisible(false)}><Text style={styles.cancelText}>Annuler</Text></Pressable>
+            <Pressable accessibilityRole="button" accessibilityLabel="Supprimer définitivement mon compte" accessibilityState={{ disabled: deleting || !deletePassword, busy: deleting }} style={styles.confirmDeleteButton} disabled={deleting || !deletePassword} onPress={() => void confirmDelete()}><Text style={styles.confirmDeleteText}>{deleting ? 'Suppression...' : 'Supprimer'}</Text></Pressable>
           </View>
         </View>
-      </Modal>
-    </SafeAreaView>
+      </View>
+    </Modal>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: colors.bgDeep },
-  content: { padding: 20, paddingBottom: 44, gap: 20 },
   back: { minHeight: 44, flexDirection: 'row', alignItems: 'center', gap: 8, alignSelf: 'flex-start' },
-  backText: { fontFamily: typography.fontFamily.semiBold, fontSize: typography.fontSize.sm, color: colors.orange },
+  backText: { fontFamily: typography.fontFamily.semiBold, fontSize: typography.fontSize.sm, color: colors.orangeInk },
   formCard: { borderRadius: 24, padding: 16, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.borderStrong, gap: 8 },
   label: { fontFamily: typography.fontFamily.semiBold, fontSize: typography.fontSize.xs, color: colors.textSecondary, textTransform: 'uppercase', letterSpacing: 1.2 },
   input: { minHeight: 52, borderRadius: 16, backgroundColor: colors.cardStrong, borderWidth: 1, borderColor: colors.borderStrong, paddingHorizontal: 14, fontFamily: typography.fontFamily.medium, fontSize: typography.fontSize.base, color: colors.text },

@@ -13,7 +13,7 @@ import {
 } from '../backend';
 import { useAuth } from '../auth';
 import { CalendarIcon, ClipboardIcon, MapIcon, UserIcon } from '../icons';
-import { useLiveRefresh } from '../live-refresh';
+import { REFRESH, useLiveRefresh } from '../live-refresh';
 import { Chip, HeroPanel, LivedBackground, ScreenHeader, SectionBlock, StatRow } from '../ui/lived-in';
 import { TicketStubArt } from '../ui/pictograms';
 import { usePhoneLayout } from '../ui/responsive';
@@ -29,7 +29,7 @@ function formatStatusLabel(status: TicketStatusOption) {
     case 'used':
       return 'Passe';
     case 'cancelled':
-      return 'Annule';
+      return 'Annulé';
   }
 }
 
@@ -40,7 +40,7 @@ export function OrganizerTicketDetail() {
   const [draftStatus, setDraftStatus] = useState<TicketStatusOption>('valid');
   const [draftGate, setDraftGate] = useState('');
   const [isSaving, setIsSaving] = useState(false);
-  const refreshTick = useLiveRefresh(2600);
+  const refreshTick = useLiveRefresh(REFRESH.normal);
   const layout = usePhoneLayout();
 
   useEffect(() => {
@@ -153,10 +153,10 @@ export function OrganizerTicketDetail() {
 
         <SectionBlock eyebrow="Sortie" title="Contexte">
           <View style={styles.infoGrid}>
-            <InfoTile icon={<CalendarIcon size={16} color={colors.orange} />} label="Date" value={ticket.event.date} width={layout.twoUpWidth} />
-            <InfoTile icon={<MapIcon size={16} color={colors.orange} />} label="Lieu" value={ticket.event.location} width={layout.twoUpWidth} />
-            <InfoTile icon={<UserIcon size={16} color={colors.orange} />} label="Orga" value={ticket.event.organizer} width={layout.twoUpWidth} />
-            <InfoTile icon={<ClipboardIcon size={16} color={colors.orange} />} label="Etat" value={formatStatusLabel(draftStatus)} width={layout.twoUpWidth} />
+            <InfoTile icon={<CalendarIcon size={16} color={colors.orangeInk} />} label="Date" value={ticket.event.date} width={layout.twoUpWidth} />
+            <InfoTile icon={<MapIcon size={16} color={colors.orangeInk} />} label="Lieu" value={ticket.event.location} width={layout.twoUpWidth} />
+            <InfoTile icon={<UserIcon size={16} color={colors.orangeInk} />} label="Orga" value={ticket.event.organizer} width={layout.twoUpWidth} />
+            <InfoTile icon={<ClipboardIcon size={16} color={colors.orangeInk} />} label="Etat" value={formatStatusLabel(draftStatus)} width={layout.twoUpWidth} />
           </View>
         </SectionBlock>
 

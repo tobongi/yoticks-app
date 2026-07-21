@@ -1,5 +1,5 @@
-import { useMemo, useState, useEffect } from 'react';
-import { ImageBackground, Pressable, ScrollView, StyleSheet, Text, View, Animated, Easing, Dimensions } from 'react-native';
+import { useMemo, useState } from 'react';
+import { ImageBackground, Pressable, ScrollView, StyleSheet, Text, View, Animated, Easing } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { useAuth } from '../src/auth';
@@ -10,15 +10,14 @@ import { getSignedInRoute } from '../src/routing';
 import { markTutorialSeen } from '../src/tutorial';
 import { colors } from '../src/theme/colors';
 import { typography } from '../src/theme/typography';
-import { HeroPanel, LivedBackground, SectionBlock } from '../src/ui/lived-in';
+import { HeroPanel, SectionBlock } from '../src/ui/lived-in';
 import { Pictogram, PictogramLabel, TicketStubArt } from '../src/ui/pictograms';
 import { getCategoryVisual } from '../src/ui/visual-language';
 import { SpeakButton } from '../src/ui/speak-button';
+import { CenteredColumn } from '../src/ui/screen';
 
 const interests = Array.from(new Set(FALLBACK_EVENTS.map((event) => event.category)));
 const cities = groupEventsByCity(FALLBACK_EVENTS).map((entry) => entry.label);
-
-const { width } = Dimensions.get('window');
 
 export default function Onboarding() {
   const { token, user } = useAuth();
@@ -146,8 +145,7 @@ export default function Onboarding() {
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
-      <LivedBackground />
-      <View style={styles.header}>
+      <CenteredColumn style={styles.header}>
         {step > 0 ? (
           <Pressable onPress={prevStep} style={styles.backButton} accessibilityLabel="Retour">
             <Text style={styles.backText}>← Retour</Text>
@@ -157,22 +155,24 @@ export default function Onboarding() {
         <View style={styles.stepIndicator}>
           <Text style={styles.stepText}>{step + 1} / 4</Text>
         </View>
-      </View>
+      </CenteredColumn>
       
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}>
-          {renderStep()}
-        </Animated.View>
+        <CenteredColumn>
+          <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}>
+            {renderStep()}
+          </Animated.View>
+        </CenteredColumn>
       </ScrollView>
 
-      <View style={styles.footer}>
+      <CenteredColumn style={styles.footer}>
         <View style={styles.progressTrack}>
           <View style={[styles.progressFill, { width: `${((step + 1) / 4) * 100}%` }]} />
         </View>
         <Pressable accessibilityRole="button" accessibilityLabel={step === 3 ? "Commencer" : "Continuer"} accessibilityState={{ disabled: busy, busy }} style={[styles.primaryButton, busy && styles.primaryButtonDisabled]} onPress={nextStep} disabled={busy}>
           <Text style={styles.primaryButtonText}>{busy ? '...' : (step === 3 ? "C'est parti !" : "Continuer")}</Text>
         </Pressable>
-      </View>
+      </CenteredColumn>
     </SafeAreaView>
   );
 }
@@ -189,12 +189,12 @@ function ChoiceChip({ label, pictogram, active, onPress }: { label: string; pict
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: colors.bgDeep },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingTop: 10, paddingBottom: 10 },
-  brand: { fontFamily: typography.fontFamily.bold, fontSize: typography.fontSize.sm, color: colors.orange, letterSpacing: 4 },
+  brand: { fontFamily: typography.fontFamily.bold, fontSize: typography.fontSize.sm, color: colors.orangeInk, letterSpacing: 4 },
   backButton: { paddingVertical: 8, paddingHorizontal: 12, borderRadius: 12, backgroundColor: colors.cardHover },
   backText: { fontFamily: typography.fontFamily.medium, fontSize: typography.fontSize.xs, color: colors.textSecondary },
   backSpacer: { width: 60 },
   stepIndicator: { paddingVertical: 6, paddingHorizontal: 12, borderRadius: 12, backgroundColor: colors.card },
-  stepText: { fontFamily: typography.fontFamily.bold, fontSize: typography.fontSize.xs, color: colors.orange },
+  stepText: { fontFamily: typography.fontFamily.bold, fontSize: typography.fontSize.xs, color: colors.orangeInk },
   content: { paddingHorizontal: 20, paddingTop: 10, paddingBottom: 112, gap: 18 },
   subtitle: { fontFamily: typography.fontFamily.regular, fontSize: typography.fontSize.md, color: colors.textSecondary, marginBottom: 16, lineHeight: 22 },
   stepRow: { flexDirection: 'row', gap: 10, flexWrap: 'wrap', marginTop: 10 },
@@ -237,7 +237,7 @@ const styles = StyleSheet.create({
   previewIconWrap: { alignSelf: 'flex-end', width: 52, height: 52, borderRadius: 18, backgroundColor: colors.card, alignItems: 'center', justifyContent: 'center' },
   previewBody: { gap: 4 },
   previewTitle: { fontFamily: typography.fontFamily.bold, fontSize: typography.fontSize.xl, color: colors.text },
-  previewCategory: { fontFamily: typography.fontFamily.semiBold, fontSize: typography.fontSize.base, color: colors.orange },
+  previewCategory: { fontFamily: typography.fontFamily.semiBold, fontSize: typography.fontSize.base, color: colors.orangeInk },
   previewMeta: { fontFamily: typography.fontFamily.medium, fontSize: typography.fontSize.base, color: colors.textSecondary },
   footer: {
     paddingHorizontal: 20,

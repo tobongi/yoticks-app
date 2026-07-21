@@ -1,26 +1,26 @@
 import { useEffect, useRef, useState } from 'react';
-import { Animated, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Animated, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import QRCode from 'react-native-qrcode-svg';
 import { FALLBACK_TICKETS, getTicket, type BackendTicket } from '../../src/backend';
 import { useAuth } from '../../src/auth';
-import { useLiveRefresh } from '../../src/live-refresh';
+import { REFRESH, useLiveRefresh } from '../../src/live-refresh';
 import { ArrowLeftIcon, CloseIcon } from '../../src/icons';
 import { colors } from '../../src/theme/colors';
 import { typography } from '../../src/theme/typography';
-import { HeroPanel, LivedBackground, SectionBlock, StatRow } from '../../src/ui/lived-in';
+import { HeroPanel, SectionBlock, StatRow } from '../../src/ui/lived-in';
 import { usePhoneLayout } from '../../src/ui/responsive';
 import { Pictogram, PictogramLabel, StatusSeal } from '../../src/ui/pictograms';
 import { getTicketVisual } from '../../src/ui/visual-language';
 import { SpeakButton } from '../../src/ui/speak-button';
+import { Screen } from '../../src/ui/screen';
 
 export default function TicketScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { token } = useAuth();
   const [ticket, setTicket] = useState<BackendTicket | null>(null);
   const [expanded, setExpanded] = useState(false);
-  const refreshTick = useLiveRefresh(2500);
+  const refreshTick = useLiveRefresh(REFRESH.normal);
   const scanLine = useRef(new Animated.Value(0)).current;
   const layout = usePhoneLayout();
 
@@ -46,8 +46,7 @@ export default function TicketScreen() {
   const ticketVisual = getTicketVisual(current.status);
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <LivedBackground />
+    <>
       <Modal visible={expanded} transparent animationType="fade" onRequestClose={() => setExpanded(false)}>
         <View style={styles.modalBackdrop}>
           <Pressable accessibilityRole="button" accessibilityLabel="Fermer le QR agrandi" style={styles.modalScrim} onPress={() => setExpanded(false)} />
@@ -69,13 +68,9 @@ export default function TicketScreen() {
         </View>
       </Modal>
 
-      <ScrollView
-        style={styles.container}
-        contentContainerStyle={[styles.content, { paddingHorizontal: layout.screenPadding, paddingBottom: layout.isCompact ? 96 : 110, gap: layout.sectionGap }]}
-        showsVerticalScrollIndicator={false}
-      >
+      <Screen>
         <Pressable accessibilityRole="button" accessibilityLabel="Retour aux billets" style={styles.back} onPress={() => router.replace('/(tabs)/tickets')}>
-          <ArrowLeftIcon size={16} color={colors.orange} />
+          <ArrowLeftIcon size={16} color={colors.orangeInk} />
           <Text style={styles.backText}>Retour</Text>
         </Pressable>
 
@@ -84,7 +79,7 @@ export default function TicketScreen() {
           <Pressable accessibilityRole="button" accessibilityLabel="Agrandir mon code QR" accessibilityState={{ disabled: !valid }} style={styles.qrCard} onPress={() => setExpanded(true)}>
             <View style={styles.qrHeader}>
               <Text style={styles.qrLabel}>Mon QR</Text>
-              <Text style={styles.qrHint}>{valid ? 'Toucher pour agrandir' : 'Deja scanne'}</Text>
+              <Text style={styles.qrHint}>{valid ? 'Toucher pour agrandir' : 'Déjà scanné'}</Text>
             </View>
             <View style={styles.qrFrameSmall}>
               <QRCode value={`yoticks-ticket:${current.code}|event:${current.event.id}|seat:${current.seat}`} size={layout.qrSizeSmall} backgroundColor={colors.card} color={colors.text} />
@@ -110,8 +105,8 @@ export default function TicketScreen() {
           </View>
           <SpeakButton instruction="Ouvre ton billet, augmente la lumière de l'écran, puis montre le code QR à l'entrée." />
         </SectionBlock>
-      </ScrollView>
-    </SafeAreaView>
+      </Screen>
+    </>
   );
 }
 
@@ -126,11 +121,8 @@ function InfoTile({ icon, label, value, width }: { icon: React.ReactNode; label:
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: colors.bgDeep },
-  container: { flex: 1 },
-  content: { paddingTop: 14 },
   back: { flexDirection: 'row', alignItems: 'center', gap: 8, alignSelf: 'flex-start' },
-  backText: { fontFamily: typography.fontFamily.semiBold, fontSize: typography.fontSize.sm, color: colors.orange },
+  backText: { fontFamily: typography.fontFamily.semiBold, fontSize: typography.fontSize.sm, color: colors.orangeInk },
   qrCard: { borderRadius: 24, padding: 14, backgroundColor: colors.cardStrong, borderWidth: 1, borderColor: colors.borderStrong, gap: 12, alignItems: 'center' },
   qrHeader: { width: '100%', flexDirection: 'row', justifyContent: 'space-between', gap: 10 },
   qrLabel: { fontFamily: typography.fontFamily.semiBold, fontSize: typography.fontSize.base, color: colors.text },

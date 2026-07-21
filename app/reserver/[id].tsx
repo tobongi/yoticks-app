@@ -1,49 +1,25 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
-import {
-  Alert,
-  ImageBackground,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import { elevation, shadow } from '../../src/theme/shadows';
+import { Alert, ImageBackground, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors } from '../../src/theme/colors';
-import { shadow } from '../../src/theme/shadows';
 import { typography } from '../../src/theme/typography';
-import {
-  FALLBACK_EVENTS,
-  createCheckoutSession,
-  getEvent,
-  listEvents,
-  quoteTicketReservation,
-  reserveTickets,
-  type BackendReservationQuote,
-  type BackendReservationResult,
-  type BackendEvent,
-} from '../../src/backend';
-import { useLiveRefresh } from '../../src/live-refresh';
+import { radius, space } from '../../src/theme/tokens';
+import { FALLBACK_EVENTS, createCheckoutSession, getEvent, listEvents, quoteTicketReservation, reserveTickets, type BackendReservationQuote, type BackendReservationResult, type BackendEvent } from '../../src/backend';
+import { REFRESH, useLiveRefresh } from '../../src/live-refresh';
 import { buildReservationFlow, PAYMENT_METHODS, type PaymentMethodKey, type ReservationTier } from '../../src/reservation-flow';
 import { scheduleReservationNotifications } from '../../src/notifications';
 import { getCheckoutReadiness } from '../../src/checkout-readiness';
 import { buildRelatedEvents } from '../../src/recommendations';
-import {
-  ArrowLeftIcon,
-  CalendarIcon,
-  ChevronRightIcon,
-  InfoIcon,
-  MapIcon,
-  PinIcon,
-  TicketIcon,
-  UserIcon,
-} from '../../src/icons';
+import { ArrowLeftIcon, CalendarIcon, ChevronRightIcon, InfoIcon, MapIcon, PinIcon, TicketIcon, UserIcon } from '../../src/icons';
 import { useAuth } from '../../src/auth';
-import { LivedBackground, PrimaryAction } from '../../src/ui/lived-in';
+import { PrimaryAction } from '../../src/ui/lived-in';
 import { Pictogram, TicketStubArt } from '../../src/ui/pictograms';
 import { getCategoryVisual } from '../../src/ui/visual-language';
+import { Screen } from '../../src/ui/screen';
+
+/** Width of the centred app column — see ui/responsive-core. */
+const CONTENT_COLUMN = 620 - 40;
 
 type TierKey = string;
 
@@ -378,7 +354,7 @@ export default function ReserveEventPage() {
   const [busy, setBusy] = useState(false);
   const [showReview, setShowReview] = useState(false);
   const [reservationResult, setReservationResult] = useState<BackendReservationResult | null>(null);
-  const refreshTick = useLiveRefresh(3000);
+  const refreshTick = useLiveRefresh(REFRESH.live);
 
   useEffect(() => {
     if (!id) return;
@@ -511,487 +487,486 @@ export default function ReserveEventPage() {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <LivedBackground />
-      <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-        <View style={styles.topActions}>
-          <Pressable accessibilityRole="button" accessibilityLabel="Retour" style={styles.backPill} onPress={handleBack}>
-            <ArrowLeftIcon size={16} color={colors.orange} />
-            <Text style={styles.backText}>Retour</Text>
-          </Pressable>
-          <View style={styles.statusPill}>
-            <Text style={styles.statusText}>Réservation ouverte</Text>
+    <>
+      <Screen>
+      <View style={styles.topActions}>
+        <Pressable accessibilityRole="button" accessibilityLabel="Retour" style={styles.backPill} onPress={handleBack}>
+          <ArrowLeftIcon size={16} color={colors.orangeInk} />
+          <Text style={styles.backText}>Retour</Text>
+        </Pressable>
+        <View style={styles.statusPill}>
+          <Text style={styles.statusText}>Réservation ouverte</Text>
+        </View>
+      </View>
+
+      <View style={[styles.heroCard, { borderColor: accent }]}>
+        <ImageBackground
+          source={{ uri: current.imageUrl }}
+          style={styles.heroImage}
+          imageStyle={styles.heroImageInner}
+        >
+          <View style={styles.heroImageOverlay} />
+          <View style={[styles.heroImageBadge, { backgroundColor: accent + '22' }]}>
+            <Text style={[styles.heroImageBadgeText, { color: accent }]}>{current.category}</Text>
+          </View>
+        </ImageBackground>
+
+        <View style={styles.heroHeader}>
+          <View style={[styles.categoryPill, { backgroundColor: accent + '22' }]}>
+            <Text style={[styles.categoryText, { color: accent }]}>{current.category}</Text>
+          </View>
+          <View style={styles.heroMeta}>
+            <Text style={styles.heroMetaLabel}>À partir de</Text>
+            <Text style={[styles.heroMetaValue, { color: accent }]}>{current.price}</Text>
           </View>
         </View>
 
-        <View style={[styles.heroCard, { borderColor: accent }]}>
-          <ImageBackground
-            source={{ uri: current.imageUrl }}
-            style={styles.heroImage}
-            imageStyle={styles.heroImageInner}
-          >
-            <View style={styles.heroImageOverlay} />
-            <View style={[styles.heroImageBadge, { backgroundColor: accent + '22' }]}>
-              <Text style={[styles.heroImageBadgeText, { color: accent }]}>{current.category}</Text>
-            </View>
-          </ImageBackground>
+        <Text style={styles.title}>{current.title}</Text>
+        <Text style={styles.subtitle} numberOfLines={2}>{current.description}</Text>
 
-          <View style={styles.heroHeader}>
-            <View style={[styles.categoryPill, { backgroundColor: accent + '22' }]}>
-              <Text style={[styles.categoryText, { color: accent }]}>{current.category}</Text>
-            </View>
-            <View style={styles.heroMeta}>
-              <Text style={styles.heroMetaLabel}>À partir de</Text>
-              <Text style={[styles.heroMetaValue, { color: accent }]}>{current.price}</Text>
+        <View style={styles.heroGrid}>
+          <View style={styles.heroStat}>
+            <CalendarIcon size={16} color={colors.orangeInk} />
+            <View style={styles.heroStatCopy}>
+              <Text style={styles.heroStatLabel}>Date</Text>
+              <Text style={styles.heroStatValue}>{current.date}</Text>
             </View>
           </View>
-
-          <Text style={styles.title}>{current.title}</Text>
-          <Text style={styles.subtitle} numberOfLines={2}>{current.description}</Text>
-
-          <View style={styles.heroGrid}>
-            <View style={styles.heroStat}>
-              <CalendarIcon size={16} color={colors.orange} />
-              <View style={styles.heroStatCopy}>
-                <Text style={styles.heroStatLabel}>Date</Text>
-                <Text style={styles.heroStatValue}>{current.date}</Text>
-              </View>
-            </View>
-            <View style={styles.heroStat}>
-              <PinIcon size={16} color={colors.orange} />
-              <View style={styles.heroStatCopy}>
-                <Text style={styles.heroStatLabel}>Ville</Text>
-                <Text style={styles.heroStatValue}>{current.location}</Text>
-              </View>
-            </View>
-            <View style={styles.heroStat}>
-              <UserIcon size={16} color={colors.orange} />
-              <View style={styles.heroStatCopy}>
-                <Text style={styles.heroStatLabel}>Organisateur</Text>
-                <Text style={styles.heroStatValue}>{current.organizer}</Text>
-              </View>
+          <View style={styles.heroStat}>
+            <PinIcon size={16} color={colors.orangeInk} />
+            <View style={styles.heroStatCopy}>
+              <Text style={styles.heroStatLabel}>Ville</Text>
+              <Text style={styles.heroStatValue}>{current.location}</Text>
             </View>
           </View>
-
-          <View style={styles.trustRow}>
-            <View style={styles.trustPill}>
-              <TicketIcon size={13} color={accent} />
-              <Text style={styles.trustText}>Billet mobile</Text>
-            </View>
-            <View style={styles.trustPill}>
-              <InfoIcon size={13} color={accent} />
-              <Text style={styles.trustText}>QR prêt</Text>
-            </View>
-            <View style={styles.trustPill}>
-              <ChevronRightIcon size={13} color={accent} />
-              <Text style={styles.trustText}>Vérifie avant paiement</Text>
+          <View style={styles.heroStat}>
+            <UserIcon size={16} color={colors.orangeInk} />
+            <View style={styles.heroStatCopy}>
+              <Text style={styles.heroStatLabel}>Organisateur</Text>
+              <Text style={styles.heroStatValue}>{current.organizer}</Text>
             </View>
           </View>
         </View>
 
-        <View style={styles.visualFlow}>
-          <View style={styles.visualFlowHead}>
-            <Pictogram pictogram={categoryVisual.key} tone={categoryVisual.tone} size={76} />
-            <View style={styles.visualFlowCopy}>
-              <Text style={styles.sectionTitle}>Choisis ton billet</Text>
-              <Text style={styles.visualFlowHint}>{current.date} • {current.location}</Text>
-            </View>
-            <TicketStubArt tone={categoryVisual.tone} size={76} />
+        <View style={styles.trustRow}>
+          <View style={styles.trustPill}>
+            <TicketIcon size={13} color={accent} />
+            <Text style={styles.trustText}>Billet mobile</Text>
           </View>
-
-          <View style={styles.tierList}>
-            {tiers.map((tier) => {
-              const active = tier.key === selectedTier;
-              return (
-                <Pressable key={tier.key} accessibilityRole="radio" accessibilityState={{ checked: active }} style={[styles.visualTier, active && styles.visualTierActive]} onPress={() => setSelectedTier(tier.key as TierKey)}>
-                  <Pictogram pictogram={active ? 'check' : 'ticket'} tone={active ? 'green' : 'blue'} size={54} />
-                  <View style={styles.visualTierCopy}><Text style={styles.tierTitle}>{tier.title}</Text><Text style={styles.tierPrice}>{tier.price}</Text></View>
-                  <Text style={styles.visualTierStock}>{tier.subtitle.split('·')[0]}</Text>
-                </Pressable>
-              );
-            })}
+          <View style={styles.trustPill}>
+            <InfoIcon size={13} color={accent} />
+            <Text style={styles.trustText}>QR prêt</Text>
           </View>
-
-          <View style={styles.quantityVisual}>
-            <Pictogram pictogram="people" tone="blue" size={58} />
-            <View style={styles.quantityRow}>
-              {[1, 2, 3, 4].map((value) => {
-                const max = current.tiers?.find((tier) => tier.key === selectedTier)?.maxPerOrder ?? 4;
-                const disabled = value > max;
-                return <Pressable key={value} accessibilityRole="radio" accessibilityLabel={`${value} billet${value > 1 ? 's' : ''}`} accessibilityState={{ checked: quantity === value, disabled }} disabled={disabled} style={[styles.quantityChip, quantity === value && styles.quantityChipActive, disabled && styles.quantityChipDisabled]} onPress={() => setQuantity(value)}><Text style={[styles.quantityChipText, quantity === value && styles.quantityChipTextActive]}>{value}</Text></Pressable>;
-              })}
-            </View>
-          </View>
-
-          <TextInput style={styles.promoInput} accessibilityLabel="Code promotionnel" value={promoCode} onChangeText={setPromoCode} placeholder="Code promo" placeholderTextColor={colors.textMuted} autoCapitalize="characters" autoCorrect={false} />
-
-          {quote ? <View style={styles.visualTotal}><Text style={styles.quoteLabel}>TOTAL</Text><Text style={styles.visualTotalValue}>{formatMoney(quote.total)}</Text><Pictogram pictogram={quote.status === 'available' ? 'check' : 'blocked'} tone={quote.status === 'available' ? 'green' : 'red'} size={54} /></View> : null}
-
-          {requiresPayment ? <View style={styles.paymentList}>{PAYMENT_METHODS.map((method) => <PaymentMethodCard key={method.key} active={method.key === selectedPayment} method={method} onPress={() => setSelectedPayment(method.key)} />)}</View> : null}
-
-          <PrimaryAction label={requiresPayment && !checkoutReadiness.allowed ? 'Paiement indisponible' : 'Vérifier'} pictogram={requiresPayment ? 'check' : 'ticket'} tone={requiresPayment && !checkoutReadiness.allowed ? 'red' : 'orange'} disabled={busy} onPress={handleReserve} />
-        </View>
-
-        {false && <>
-        <View style={styles.checkoutStepper}>
-          <View style={styles.checkoutStepperHeader}>
-            <Text style={styles.checkoutStepperEyebrow}>Parcours de paiement</Text>
-            <Text style={styles.checkoutStepperTitle}>Trois étapes, sans surprise.</Text>
-          </View>
-          <View style={styles.checkoutStepperRail}>
-            {[
-              { key: 'discover', label: '1', text: 'Choisir le billet' },
-              { key: 'review', label: '2', text: 'Récapitulatif' },
-              { key: 'confirm', label: '3', text: 'Confirmer' },
-            ].map((step, index) => (
-              <View key={step.key} style={styles.checkoutStep}>
-                <View style={[styles.checkoutStepDot, index === 0 && { backgroundColor: accent }]}>
-                  <Text style={[styles.checkoutStepLabel, index === 0 && styles.checkoutStepLabelActive]}>{step.label}</Text>
-                </View>
-                <Text style={styles.checkoutStepText}>{step.text}</Text>
-              </View>
-            ))}
+          <View style={styles.trustPill}>
+            <ChevronRightIcon size={13} color={accent} />
+            <Text style={styles.trustText}>Vérifie avant paiement</Text>
           </View>
         </View>
+      </View>
 
-        <View style={styles.selectorBlock}>
-          <View style={styles.selectorHeader}>
-            <Text style={styles.sectionEyebrow}>Réservation</Text>
-            <Text style={styles.selectorTitle}>Choisis une date ou une session</Text>
-            <Text style={styles.selectorCaption}>
-              Comme sur les meilleures plateformes, tout est résumé ici avant de choisir ton billet.
-            </Text>
+      <View style={styles.visualFlow}>
+        <View style={styles.visualFlowHead}>
+          <Pictogram pictogram={categoryVisual.key} tone={categoryVisual.tone} size={76} />
+          <View style={styles.visualFlowCopy}>
+            <Text style={styles.sectionTitle}>Choisis ton billet</Text>
+            <Text style={styles.visualFlowHint}>{current.date} • {current.location}</Text>
           </View>
-
-          <View style={styles.selectorRail}>
-            <SelectorChip icon={<CalendarIcon size={14} color={colors.orange} />} label="Date" value={current.date} />
-            <SelectorChip icon={<MapIcon size={14} color={colors.orange} />} label="Heure" value={formatEventTime(current)} />
-            <SelectorChip icon={<TicketIcon size={14} color={colors.orange} />} label="Billet" value={`${quantity} billet${quantity > 1 ? 's' : ''}`} />
-          </View>
+          <TicketStubArt tone={categoryVisual.tone} size={76} />
         </View>
 
-        <View style={styles.selectorBlock}>
-          <View style={styles.selectorHeader}>
-            <Text style={styles.sectionEyebrow}>Live inventory</Text>
-            <Text style={styles.selectorTitle}>Quantite, promo, and live availability</Text>
-            <Text style={styles.selectorCaption}>
-              This is the real ticketing layer: per-order limits, sold-out handling, promo codes, and total before checkout.
-            </Text>
-          </View>
+        <View style={styles.tierList}>
+          {tiers.map((tier) => {
+            const active = tier.key === selectedTier;
+            return (
+              <Pressable key={tier.key} accessibilityRole="radio" accessibilityState={{ checked: active }} style={[styles.visualTier, active && styles.visualTierActive]} onPress={() => setSelectedTier(tier.key as TierKey)}>
+                <Pictogram pictogram={active ? 'check' : 'ticket'} tone={active ? 'green' : 'blue'} size={54} />
+                <View style={styles.visualTierCopy}><Text style={styles.tierTitle}>{tier.title}</Text><Text style={styles.tierPrice}>{tier.price}</Text></View>
+                <Text style={styles.visualTierStock}>{tier.subtitle.split('·')[0]}</Text>
+              </Pressable>
+            );
+          })}
+        </View>
 
+        <View style={styles.quantityVisual}>
+          <Pictogram pictogram="people" tone="blue" size={58} />
           <View style={styles.quantityRow}>
             {[1, 2, 3, 4].map((value) => {
-              const maxPerOrder = current.tiers?.find((tier) => tier.key === selectedTier)?.maxPerOrder ?? 4;
-              const disabled = value > maxPerOrder;
-              const active = quantity === value;
-              return (
-                <Pressable accessibilityRole="button" accessibilityLabel={`${value} billet${value > 1 ? 's' : ''}`} accessibilityState={{ selected: active, disabled }}
-                  key={value}
-                  style={[styles.quantityChip, active && styles.quantityChipActive, disabled && styles.quantityChipDisabled]}
-                  onPress={() => !disabled && setQuantity(value)}
-                >
-                  <Text style={[styles.quantityChipText, active && styles.quantityChipTextActive]}>{value}</Text>
-                </Pressable>
-              );
-            })}
-          </View>
-
-          <TextInput
-            style={styles.promoInput}
-            value={promoCode}
-            onChangeText={setPromoCode}
-            placeholder="Promo code"
-            placeholderTextColor={colors.textMuted}
-            autoCapitalize="characters"
-            autoCorrect={false}
-          />
-
-          {quote ? (
-            <View style={styles.quoteCard}>
-              <View style={styles.quoteRow}>
-                <Text style={styles.quoteLabel}>Subtotal</Text>
-                <Text style={styles.quoteValue}>{formatMoney(quote!.subtotal)}</Text>
-              </View>
-              <View style={styles.quoteRow}>
-                <Text style={styles.quoteLabel}>Discount</Text>
-                <Text style={styles.quoteValue}>{formatMoney(quote!.discount)}</Text>
-              </View>
-              <View style={styles.quoteRow}>
-                <Text style={styles.quoteLabel}>Total</Text>
-                <Text style={styles.quoteValue}>{formatMoney(quote!.total)}</Text>
-              </View>
-              <Text style={styles.quoteNote}>
-                {quote!.status === 'available'
-                  ? `${quote!.remainingAfterPurchase} tickets remain after this order.`
-                  : quote!.status === 'waitlist_only'
-                    ? 'This tier is sold out, but waitlist is open.'
-                    : 'This tier is sold out right now.'}
-              </Text>
-            </View>
-          ) : null}
-        </View>
-
-        <View style={styles.overviewPanel}>
-          <View style={styles.overviewHero}>
-            <View style={styles.overviewDateBadge}>
-              <Text style={styles.overviewDateDay}>{eventDateParts[0] ?? '--'}</Text>
-              <Text style={styles.overviewDateMonth}>{(eventDateParts[1] ?? '').slice(0, 3).toUpperCase()}</Text>
-            </View>
-            <View style={styles.overviewCopy}>
-              <Text style={styles.overviewEyebrow}>Event snapshot</Text>
-              <Text style={styles.overviewTitle}>Why this page should feel easier to trust</Text>
-              <Text style={styles.overviewText}>
-                Strong event apps help people compare timing, access, and crowd fit before they commit. This card does that work up front.
-              </Text>
-            </View>
-          </View>
-
-          <View style={styles.quickFactsGrid}>
-            {quickFacts.map((fact) => (
-              <View key={fact.label} style={styles.quickFactCard}>
-                <Text style={styles.quickFactLabel}>{fact.label}</Text>
-                <Text style={styles.quickFactValue}>{fact.value}</Text>
-              </View>
-            ))}
-          </View>
-
-          <View style={styles.planningList}>
-            {planningNotes.map((note) => (
-              <View key={note} style={styles.planningItem}>
-                <View style={[styles.planningBullet, { backgroundColor: accent }]} />
-                <Text style={styles.planningText}>{note}</Text>
-              </View>
-            ))}
-          </View>
-        </View>
-
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Choisis ton billet</Text>
-          <View style={styles.tierList}>
-            {tiers.map((tier) => {
-              const active = tier.key === selectedTier;
-              return (
-                <Pressable accessibilityRole="button" accessibilityLabel={tier.title} accessibilityState={{ selected: active }}
-                  key={tier.key}
-                  style={[
-                    styles.tierCard,
-                    active && { borderColor: accent, backgroundColor: colors.bg },
-                  ]}
-                  onPress={() => setSelectedTier(tier.key as TierKey)}
-                >
-                  <View style={styles.tierHeader}>
-                    <View style={styles.tierTitleRow}>
-                      <View style={[styles.tierRadio, active && { borderColor: accent }]}>
-                        {active && <View style={[styles.tierRadioInner, { backgroundColor: accent }]} />}
-                      </View>
-                      <View style={styles.tierTitleCopy}>
-                        <Text style={styles.tierTitle}>{tier.title}</Text>
-                        <Text style={styles.tierSubtitle}>{tier.subtitle}</Text>
-                      </View>
-                    </View>
-                    <View style={styles.tierPriceWrap}>
-                      <Text style={[styles.tierPrice, { color: active ? accent : colors.text }]}>{tier.price}</Text>
-                      {tier.highlighted && <Text style={styles.tierHighlight}>{active ? 'Sélectionné' : 'Le plus choisi'}</Text>}
-                    </View>
-                  </View>
-                  <Text style={styles.tierDescription}>{tier.description}</Text>
-                  <View style={styles.perkRow}>
-                    {tier.perks.map((perk) => (
-                      <View key={perk} style={styles.perkChip}>
-                        <Text style={styles.perkText}>{perk}</Text>
-                      </View>
-                    ))}
-                  </View>
-                </Pressable>
-              );
+              const max = current.tiers?.find((tier) => tier.key === selectedTier)?.maxPerOrder ?? 4;
+              const disabled = value > max;
+              return <Pressable key={value} accessibilityRole="radio" accessibilityLabel={`${value} billet${value > 1 ? 's' : ''}`} accessibilityState={{ checked: quantity === value, disabled }} disabled={disabled} style={[styles.quantityChip, quantity === value && styles.quantityChipActive, disabled && styles.quantityChipDisabled]} onPress={() => setQuantity(value)}><Text style={[styles.quantityChipText, quantity === value && styles.quantityChipTextActive]}>{value}</Text></Pressable>;
             })}
           </View>
         </View>
 
-        {requiresPayment && (
-          <View style={styles.section}>
-            <View style={styles.panelHeader}>
-              <Text style={styles.panelEyebrow}>Moyen de paiement</Text>
-              <Text style={styles.panelTitle}>Choisis comment payer</Text>
-            </View>
+        <TextInput style={styles.promoInput} accessibilityLabel="Code promotionnel" value={promoCode} onChangeText={setPromoCode} placeholder="Code promo" placeholderTextColor={colors.textMuted} autoCapitalize="characters" autoCorrect={false} />
 
-            <View style={styles.paymentList}>
-              {PAYMENT_METHODS.map((method) => {
-                const active = method.key === selectedPayment;
-                return (
-                  <PaymentMethodCard
-                    key={method.key}
-                    active={active}
-                    method={method}
-                    onPress={() => setSelectedPayment(method.key)}
-                  />
-                );
-              })}
-            </View>
-          </View>
-        )}
+        {quote ? <View style={styles.visualTotal}><Text style={styles.quoteLabel}>TOTAL</Text><Text style={styles.visualTotalValue}>{formatMoney(quote.total)}</Text><Pictogram pictogram={quote.status === 'available' ? 'check' : 'blocked'} tone={quote.status === 'available' ? 'green' : 'red'} size={54} /></View> : null}
 
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Ce qui t’attend</Text>
-          <View style={styles.infoGrid}>
-            <View style={styles.infoCard}>
-              <TicketIcon size={18} color={accent} />
-              <Text style={styles.infoLabel}>Format</Text>
-              <Text style={styles.infoValue}>Billet mobile + QR code</Text>
-            </View>
-            <View style={styles.infoCard}>
-              <MapIcon size={18} color={accent} />
-              <Text style={styles.infoLabel}>Accès</Text>
-              <Text style={styles.infoValue}>{current.location}</Text>
-            </View>
-            <View style={styles.infoCard}>
-              <InfoIcon size={18} color={accent} />
-              <Text style={styles.infoLabel}>Audience</Text>
-              <Text style={styles.infoValue}>{categoryAudience(current)}</Text>
-            </View>
-            <View style={styles.infoCard}>
-              <PinIcon size={18} color={accent} />
-              <Text style={styles.infoLabel}>Arrivée conseillée</Text>
-              <Text style={styles.infoValue}>{formatArrivalTime(current)}</Text>
-            </View>
-          </View>
+        {requiresPayment ? <View style={styles.paymentList}>{PAYMENT_METHODS.map((method) => <PaymentMethodCard key={method.key} active={method.key === selectedPayment} method={method} onPress={() => setSelectedPayment(method.key)} />)}</View> : null}
+
+        <PrimaryAction label={requiresPayment && !checkoutReadiness.allowed ? 'Paiement indisponible' : 'Vérifier'} pictogram={requiresPayment ? 'check' : 'ticket'} tone={requiresPayment && !checkoutReadiness.allowed ? 'red' : 'orange'} disabled={busy} onPress={handleReserve} />
+      </View>
+
+      {false && <>
+      <View style={styles.checkoutStepper}>
+        <View style={styles.checkoutStepperHeader}>
+          <Text style={styles.checkoutStepperEyebrow}>Parcours de paiement</Text>
+          <Text style={styles.checkoutStepperTitle}>Trois étapes, sans surprise.</Text>
         </View>
-
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Programme</Text>
-          <View style={styles.timeline}>
-            {timeline.map((step, index) => (
-              <View key={`${step.time}-${index}`} style={styles.timelineRow}>
-                <View style={[styles.timelineDot, { backgroundColor: accent }]} />
-                <View style={styles.timelineCopy}>
-                  <Text style={styles.timelineTime}>{step.time}</Text>
-                  <Text style={styles.timelineTitle}>{step.title}</Text>
-                  <Text style={styles.timelineText}>{step.description}</Text>
-                </View>
+        <View style={styles.checkoutStepperRail}>
+          {[
+            { key: 'discover', label: '1', text: 'Choisir le billet' },
+            { key: 'review', label: '2', text: 'Récapitulatif' },
+            { key: 'confirm', label: '3', text: 'Confirmer' },
+          ].map((step, index) => (
+            <View key={step.key} style={styles.checkoutStep}>
+              <View style={[styles.checkoutStepDot, index === 0 && { backgroundColor: accent }]}>
+                <Text style={[styles.checkoutStepLabel, index === 0 && styles.checkoutStepLabelActive]}>{step.label}</Text>
               </View>
-            ))}
-          </View>
+              <Text style={styles.checkoutStepText}>{step.text}</Text>
+            </View>
+          ))}
+        </View>
+      </View>
+
+      <View style={styles.selectorBlock}>
+        <View style={styles.selectorHeader}>
+          <Text style={styles.sectionEyebrow}>Réservation</Text>
+          <Text style={styles.selectorTitle}>Choisis une date ou une session</Text>
+          <Text style={styles.selectorCaption}>
+            Comme sur les meilleures plateformes, tout est résumé ici avant de choisir ton billet.
+          </Text>
         </View>
 
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Pourquoi réserver ici</Text>
-          <View style={styles.benefitList}>
-            {[
-              'Paiement rapide et billet envoyé directement dans l’app',
-              'Tous les détails utiles avant l’achat, sans surcharge',
-              'QR code, statut du billet et historique centralisés',
-            ].map((item) => (
-              <View key={item} style={styles.benefitItem}>
-                <View style={[styles.benefitBullet, { backgroundColor: accent }]} />
-                <Text style={styles.benefitText}>{item}</Text>
-              </View>
-            ))}
-          </View>
+        <View style={styles.selectorRail}>
+          <SelectorChip icon={<CalendarIcon size={14} color={colors.orangeInk} />} label="Date" value={current.date} />
+          <SelectorChip icon={<MapIcon size={14} color={colors.orangeInk} />} label="Heure" value={formatEventTime(current)} />
+          <SelectorChip icon={<TicketIcon size={14} color={colors.orangeInk} />} label="Billet" value={`${quantity} billet${quantity > 1 ? 's' : ''}`} />
+        </View>
+      </View>
+
+      <View style={styles.selectorBlock}>
+        <View style={styles.selectorHeader}>
+          <Text style={styles.sectionEyebrow}>Live inventory</Text>
+          <Text style={styles.selectorTitle}>Quantite, promo, and live availability</Text>
+          <Text style={styles.selectorCaption}>
+            This is the real ticketing layer: per-order limits, sold-out handling, promo codes, and total before checkout.
+          </Text>
         </View>
 
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Before you go</Text>
-          <View style={styles.supportGrid}>
-            <View style={styles.supportCard}>
-              <Text style={styles.supportLabel}>Doors</Text>
-              <Text style={styles.supportValue}>{formatArrivalTime(current)}</Text>
-            </View>
-            <View style={styles.supportCard}>
-              <Text style={styles.supportLabel}>Tempo</Text>
-              <Text style={styles.supportValue}>{eventMomentum(current)}</Text>
-            </View>
-            <View style={styles.supportCard}>
-              <Text style={styles.supportLabel}>Host</Text>
-              <Text style={styles.supportValue}>{current.organizer}</Text>
-            </View>
-            <View style={styles.supportCard}>
-              <Text style={styles.supportLabel}>Ticket mode</Text>
-              <Text style={styles.supportValue}>{requiresPayment ? 'Pay then scan' : 'Reserve then scan'}</Text>
-            </View>
-          </View>
+        <View style={styles.quantityRow}>
+          {[1, 2, 3, 4].map((value) => {
+            const maxPerOrder = current.tiers?.find((tier) => tier.key === selectedTier)?.maxPerOrder ?? 4;
+            const disabled = value > maxPerOrder;
+            const active = quantity === value;
+            return (
+              <Pressable accessibilityRole="button" accessibilityLabel={`${value} billet${value > 1 ? 's' : ''}`} accessibilityState={{ selected: active, disabled }}
+                key={value}
+                style={[styles.quantityChip, active && styles.quantityChipActive, disabled && styles.quantityChipDisabled]}
+                onPress={() => !disabled && setQuantity(value)}
+              >
+                <Text style={[styles.quantityChipText, active && styles.quantityChipTextActive]}>{value}</Text>
+              </Pressable>
+            );
+          })}
         </View>
 
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>À propos de l’événement</Text>
-          <View style={styles.aboutCard}>
-            <Text style={styles.aboutText}>{current.description}</Text>
-            <View style={styles.aboutMetaRow}>
-              <Text style={styles.aboutMeta}>Organisé par {current.organizer}</Text>
-              <Text style={styles.aboutMeta}>•</Text>
-              <Text style={styles.aboutMeta}>{current.category}</Text>
+        <TextInput
+          style={styles.promoInput}
+          value={promoCode}
+          onChangeText={setPromoCode}
+          placeholder="Promo code"
+          placeholderTextColor={colors.textMuted}
+          autoCapitalize="characters"
+          autoCorrect={false}
+        />
+
+        {quote ? (
+          <View style={styles.quoteCard}>
+            <View style={styles.quoteRow}>
+              <Text style={styles.quoteLabel}>Subtotal</Text>
+              <Text style={styles.quoteValue}>{formatMoney(quote!.subtotal)}</Text>
             </View>
-            <Text style={styles.aboutNote}>
-              YoTicks prépare ici un véritable parcours de réservation plutôt qu’une simple fiche.
+            <View style={styles.quoteRow}>
+              <Text style={styles.quoteLabel}>Discount</Text>
+              <Text style={styles.quoteValue}>{formatMoney(quote!.discount)}</Text>
+            </View>
+            <View style={styles.quoteRow}>
+              <Text style={styles.quoteLabel}>Total</Text>
+              <Text style={styles.quoteValue}>{formatMoney(quote!.total)}</Text>
+            </View>
+            <Text style={styles.quoteNote}>
+              {quote!.status === 'available'
+                ? `${quote!.remainingAfterPurchase} tickets remain after this order.`
+                : quote!.status === 'waitlist_only'
+                  ? 'This tier is sold out, but waitlist is open.'
+                  : 'This tier is sold out right now.'}
+            </Text>
+          </View>
+        ) : null}
+      </View>
+
+      <View style={styles.overviewPanel}>
+        <View style={styles.overviewHero}>
+          <View style={styles.overviewDateBadge}>
+            <Text style={styles.overviewDateDay}>{eventDateParts[0] ?? '--'}</Text>
+            <Text style={styles.overviewDateMonth}>{(eventDateParts[1] ?? '').slice(0, 3).toUpperCase()}</Text>
+          </View>
+          <View style={styles.overviewCopy}>
+            <Text style={styles.overviewEyebrow}>Event snapshot</Text>
+            <Text style={styles.overviewTitle}>Why this page should feel easier to trust</Text>
+            <Text style={styles.overviewText}>
+              Strong event apps help people compare timing, access, and crowd fit before they commit. This card does that work up front.
             </Text>
           </View>
         </View>
 
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Accès & infos pratiques</Text>
-          <View style={styles.supportGrid}>
-            <View style={styles.supportCard}>
-              <Text style={styles.supportLabel}>Où</Text>
-              <Text style={styles.supportValue}>{current.location}</Text>
+        <View style={styles.quickFactsGrid}>
+          {quickFacts.map((fact) => (
+            <View key={fact.label} style={styles.quickFactCard}>
+              <Text style={styles.quickFactLabel}>{fact.label}</Text>
+              <Text style={styles.quickFactValue}>{fact.value}</Text>
             </View>
-            <View style={styles.supportCard}>
-              <Text style={styles.supportLabel}>Quand</Text>
-              <Text style={styles.supportValue}>{current.date}</Text>
-            </View>
-            <View style={styles.supportCard}>
-              <Text style={styles.supportLabel}>Prix</Text>
-              <Text style={styles.supportValue}>{current.price}</Text>
-            </View>
-            <View style={styles.supportCard}>
-              <Text style={styles.supportLabel}>Ticket</Text>
-              <Text style={styles.supportValue}>{currentTier.title}</Text>
-            </View>
-          </View>
+          ))}
         </View>
 
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Questions fréquentes</Text>
-          <View style={styles.faqList}>
-            {faq.map((item) => (
-              <View key={item.question} style={styles.faqCard}>
-                <Text style={styles.faqQuestion}>{item.question}</Text>
-                <Text style={styles.faqAnswer}>{item.answer}</Text>
-              </View>
-            ))}
-          </View>
+        <View style={styles.planningList}>
+          {planningNotes.map((note) => (
+            <View key={note} style={styles.planningItem}>
+              <View style={[styles.planningBullet, { backgroundColor: accent }]} />
+              <Text style={styles.planningText}>{note}</Text>
+            </View>
+          ))}
         </View>
+      </View>
 
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Événements similaires</Text>
-          <View style={styles.relatedList}>
-            {related.map((item) => (
-              <Pressable accessibilityRole="button" accessibilityLabel={`Ouvrir ${item.title}`}
-                key={item.id}
-                style={styles.relatedCard}
-                onPress={() => router.push({ pathname: '/reserver/[id]', params: { id: item.id } })}
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Choisis ton billet</Text>
+        <View style={styles.tierList}>
+          {tiers.map((tier) => {
+            const active = tier.key === selectedTier;
+            return (
+              <Pressable accessibilityRole="button" accessibilityLabel={tier.title} accessibilityState={{ selected: active }}
+                key={tier.key}
+                style={[
+                  styles.tierCard,
+                  active && { borderColor: accent, backgroundColor: colors.bg },
+                ]}
+                onPress={() => setSelectedTier(tier.key as TierKey)}
               >
-                <ImageBackground
-                  source={{ uri: item.imageUrl }}
-                  style={styles.relatedThumb}
-                  imageStyle={styles.relatedThumbInner}
-                >
-                  <View style={styles.relatedThumbOverlay} />
-                  <View style={[styles.relatedAccent, { backgroundColor: item.color }]} />
-                </ImageBackground>
-                <View style={styles.relatedBody}>
-                  <Text style={styles.relatedCategory}>{item.category}</Text>
-                  <Text style={styles.relatedReason}>{item.reason}</Text>
-                  <Text style={styles.relatedTitle}>{item.title}</Text>
-                  <Text style={styles.relatedMeta}>{item.date} • {item.location}</Text>
+                <View style={styles.tierHeader}>
+                  <View style={styles.tierTitleRow}>
+                    <View style={[styles.tierRadio, active && { borderColor: accent }]}>
+                      {active && <View style={[styles.tierRadioInner, { backgroundColor: accent }]} />}
+                    </View>
+                    <View style={styles.tierTitleCopy}>
+                      <Text style={styles.tierTitle}>{tier.title}</Text>
+                      <Text style={styles.tierSubtitle}>{tier.subtitle}</Text>
+                    </View>
+                  </View>
+                  <View style={styles.tierPriceWrap}>
+                    <Text style={[styles.tierPrice, { color: active ? accent : colors.text }]}>{tier.price}</Text>
+                    {tier.highlighted && <Text style={styles.tierHighlight}>{active ? 'Sélectionné' : 'Le plus choisi'}</Text>}
+                  </View>
                 </View>
-                <ChevronRightIcon size={16} color={colors.textMuted} />
+                <Text style={styles.tierDescription}>{tier.description}</Text>
+                <View style={styles.perkRow}>
+                  {tier.perks.map((perk) => (
+                    <View key={perk} style={styles.perkChip}>
+                      <Text style={styles.perkText}>{perk}</Text>
+                    </View>
+                  ))}
+                </View>
               </Pressable>
-            ))}
+            );
+          })}
+        </View>
+      </View>
+
+      {requiresPayment && (
+        <View style={styles.section}>
+          <View style={styles.panelHeader}>
+            <Text style={styles.panelEyebrow}>Moyen de paiement</Text>
+            <Text style={styles.panelTitle}>Choisis comment payer</Text>
+          </View>
+
+          <View style={styles.paymentList}>
+            {PAYMENT_METHODS.map((method) => {
+              const active = method.key === selectedPayment;
+              return (
+                <PaymentMethodCard
+                  key={method.key}
+                  active={active}
+                  method={method}
+                  onPress={() => setSelectedPayment(method.key)}
+                />
+              );
+            })}
           </View>
         </View>
-        </>}
+      )}
 
-        <View style={styles.bottomSpacer} />
-      </ScrollView>
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Ce qui t’attend</Text>
+        <View style={styles.infoGrid}>
+          <View style={styles.infoCard}>
+            <TicketIcon size={18} color={accent} />
+            <Text style={styles.infoLabel}>Format</Text>
+            <Text style={styles.infoValue}>Billet mobile + QR code</Text>
+          </View>
+          <View style={styles.infoCard}>
+            <MapIcon size={18} color={accent} />
+            <Text style={styles.infoLabel}>Accès</Text>
+            <Text style={styles.infoValue}>{current.location}</Text>
+          </View>
+          <View style={styles.infoCard}>
+            <InfoIcon size={18} color={accent} />
+            <Text style={styles.infoLabel}>Audience</Text>
+            <Text style={styles.infoValue}>{categoryAudience(current)}</Text>
+          </View>
+          <View style={styles.infoCard}>
+            <PinIcon size={18} color={accent} />
+            <Text style={styles.infoLabel}>Arrivée conseillée</Text>
+            <Text style={styles.infoValue}>{formatArrivalTime(current)}</Text>
+          </View>
+        </View>
+      </View>
+
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Programme</Text>
+        <View style={styles.timeline}>
+          {timeline.map((step, index) => (
+            <View key={`${step.time}-${index}`} style={styles.timelineRow}>
+              <View style={[styles.timelineDot, { backgroundColor: accent }]} />
+              <View style={styles.timelineCopy}>
+                <Text style={styles.timelineTime}>{step.time}</Text>
+                <Text style={styles.timelineTitle}>{step.title}</Text>
+                <Text style={styles.timelineText}>{step.description}</Text>
+              </View>
+            </View>
+          ))}
+        </View>
+      </View>
+
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Pourquoi réserver ici</Text>
+        <View style={styles.benefitList}>
+          {[
+            'Paiement rapide et billet envoyé directement dans l’app',
+            'Tous les détails utiles avant l’achat, sans surcharge',
+            'QR code, statut du billet et historique centralisés',
+          ].map((item) => (
+            <View key={item} style={styles.benefitItem}>
+              <View style={[styles.benefitBullet, { backgroundColor: accent }]} />
+              <Text style={styles.benefitText}>{item}</Text>
+            </View>
+          ))}
+        </View>
+      </View>
+
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Before you go</Text>
+        <View style={styles.supportGrid}>
+          <View style={styles.supportCard}>
+            <Text style={styles.supportLabel}>Doors</Text>
+            <Text style={styles.supportValue}>{formatArrivalTime(current)}</Text>
+          </View>
+          <View style={styles.supportCard}>
+            <Text style={styles.supportLabel}>Tempo</Text>
+            <Text style={styles.supportValue}>{eventMomentum(current)}</Text>
+          </View>
+          <View style={styles.supportCard}>
+            <Text style={styles.supportLabel}>Host</Text>
+            <Text style={styles.supportValue}>{current.organizer}</Text>
+          </View>
+          <View style={styles.supportCard}>
+            <Text style={styles.supportLabel}>Ticket mode</Text>
+            <Text style={styles.supportValue}>{requiresPayment ? 'Pay then scan' : 'Reserve then scan'}</Text>
+          </View>
+        </View>
+      </View>
+
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>À propos de l’événement</Text>
+        <View style={styles.aboutCard}>
+          <Text style={styles.aboutText}>{current.description}</Text>
+          <View style={styles.aboutMetaRow}>
+            <Text style={styles.aboutMeta}>Organisé par {current.organizer}</Text>
+            <Text style={styles.aboutMeta}>•</Text>
+            <Text style={styles.aboutMeta}>{current.category}</Text>
+          </View>
+          <Text style={styles.aboutNote}>
+            YoTicks prépare ici un véritable parcours de réservation plutôt qu’une simple fiche.
+          </Text>
+        </View>
+      </View>
+
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Accès & infos pratiques</Text>
+        <View style={styles.supportGrid}>
+          <View style={styles.supportCard}>
+            <Text style={styles.supportLabel}>Où</Text>
+            <Text style={styles.supportValue}>{current.location}</Text>
+          </View>
+          <View style={styles.supportCard}>
+            <Text style={styles.supportLabel}>Quand</Text>
+            <Text style={styles.supportValue}>{current.date}</Text>
+          </View>
+          <View style={styles.supportCard}>
+            <Text style={styles.supportLabel}>Prix</Text>
+            <Text style={styles.supportValue}>{current.price}</Text>
+          </View>
+          <View style={styles.supportCard}>
+            <Text style={styles.supportLabel}>Ticket</Text>
+            <Text style={styles.supportValue}>{currentTier.title}</Text>
+          </View>
+        </View>
+      </View>
+
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Questions fréquentes</Text>
+        <View style={styles.faqList}>
+          {faq.map((item) => (
+            <View key={item.question} style={styles.faqCard}>
+              <Text style={styles.faqQuestion}>{item.question}</Text>
+              <Text style={styles.faqAnswer}>{item.answer}</Text>
+            </View>
+          ))}
+        </View>
+      </View>
+
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Événements similaires</Text>
+        <View style={styles.relatedList}>
+          {related.map((item) => (
+            <Pressable accessibilityRole="button" accessibilityLabel={`Ouvrir ${item.title}`}
+              key={item.id}
+              style={styles.relatedCard}
+              onPress={() => router.push({ pathname: '/reserver/[id]', params: { id: item.id } })}
+            >
+              <ImageBackground
+                source={{ uri: item.imageUrl }}
+                style={styles.relatedThumb}
+                imageStyle={styles.relatedThumbInner}
+              >
+                <View style={styles.relatedThumbOverlay} />
+                <View style={[styles.relatedAccent, { backgroundColor: item.color }]} />
+              </ImageBackground>
+              <View style={styles.relatedBody}>
+                <Text style={styles.relatedCategory}>{item.category}</Text>
+                <Text style={styles.relatedReason}>{item.reason}</Text>
+                <Text style={styles.relatedTitle}>{item.title}</Text>
+                <Text style={styles.relatedMeta}>{item.date} • {item.location}</Text>
+              </View>
+              <ChevronRightIcon size={16} color={colors.textMuted} />
+            </Pressable>
+          ))}
+        </View>
+      </View>
+      </>}
+
+      <View style={styles.bottomSpacer} />
+      </Screen>
 
       {showReview && !reservationTicket && <View style={styles.backdrop} />}
 
@@ -1126,12 +1101,11 @@ export default function ReserveEventPage() {
           </>
         )}
       </View>
-    </SafeAreaView>
+    </>
   );
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: colors.bgDeep },
   visualFlow: { marginTop: 16, padding: 16, gap: 14, borderRadius: 28, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.borderStrong },
   visualFlowHead: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   visualFlowCopy: { flex: 1, gap: 3 },
@@ -1143,7 +1117,6 @@ const styles = StyleSheet.create({
   quantityVisual: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   visualTotal: { minHeight: 72, flexDirection: 'row', alignItems: 'center', gap: 12, padding: 12, borderRadius: 22, backgroundColor: colors.surfaceGreen, borderWidth: 1, borderColor: colors.green + '44' },
   visualTotalValue: { flex: 1, fontFamily: typography.fontFamily.bold, fontSize: typography.fontSize.xl, color: colors.text },
-  container: { flex: 1, paddingHorizontal: 20, paddingTop: 14 },
   topActions: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18, gap: 12 },
   backPill: {
     flexDirection: 'row',
@@ -1165,7 +1138,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.borderOrange,
   },
-  statusText: { fontFamily: typography.fontFamily.medium, fontSize: typography.fontSize.xs, color: colors.orange, textTransform: 'uppercase', letterSpacing: 1.5 },
+  statusText: { fontFamily: typography.fontFamily.medium, fontSize: typography.fontSize.xs, color: colors.orangeInk, textTransform: 'uppercase', letterSpacing: 1.5 },
   heroCard: {
     borderRadius: 30,
     borderWidth: 1,
@@ -1254,7 +1227,7 @@ const styles = StyleSheet.create({
   checkoutStepperEyebrow: {
     fontFamily: typography.fontFamily.medium,
     fontSize: typography.fontSize.xs,
-    color: colors.orange,
+    color: colors.orangeInk,
     textTransform: 'uppercase',
     letterSpacing: 2.4,
   },
@@ -1309,7 +1282,7 @@ const styles = StyleSheet.create({
   sectionEyebrow: {
     fontFamily: typography.fontFamily.medium,
     fontSize: typography.fontSize.xs,
-    color: colors.orange,
+    color: colors.orangeInk,
     textTransform: 'uppercase',
     letterSpacing: 2.8,
   },
@@ -1442,7 +1415,7 @@ const styles = StyleSheet.create({
   overviewEyebrow: {
     fontFamily: typography.fontFamily.medium,
     fontSize: typography.fontSize.xs,
-    color: colors.orange,
+    color: colors.orangeInk,
     textTransform: 'uppercase',
     letterSpacing: 1.8,
   },
@@ -1534,7 +1507,7 @@ const styles = StyleSheet.create({
   tierSubtitle: { marginTop: 4, fontFamily: typography.fontFamily.regular, fontSize: typography.fontSize.xs, color: colors.textSecondary },
   tierPriceWrap: { alignItems: 'flex-end' },
   tierPrice: { fontFamily: typography.fontFamily.bold, fontSize: typography.fontSize.md },
-  tierHighlight: { marginTop: 4, fontFamily: typography.fontFamily.medium, fontSize: typography.fontSize.xs, color: colors.orange, textTransform: 'uppercase', letterSpacing: 1.2 },
+  tierHighlight: { marginTop: 4, fontFamily: typography.fontFamily.medium, fontSize: typography.fontSize.xs, color: colors.orangeInk, textTransform: 'uppercase', letterSpacing: 1.2 },
   tierDescription: { fontFamily: typography.fontFamily.regular, fontSize: typography.fontSize.sm, color: colors.textSecondary, lineHeight: 20 },
   perkRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   perkChip: { paddingHorizontal: 10, paddingVertical: 8, borderRadius: 999, backgroundColor: colors.surfaceSoft, borderWidth: 1, borderColor: colors.border },
@@ -1556,7 +1529,7 @@ const styles = StyleSheet.create({
   timelineRow: { flexDirection: 'row', gap: 14 },
   timelineDot: { width: 12, height: 12, borderRadius: 6, marginTop: 5 },
   timelineCopy: { flex: 1, paddingBottom: 4, borderBottomWidth: 1, borderBottomColor: colors.border },
-  timelineTime: { fontFamily: typography.fontFamily.bold, fontSize: typography.fontSize.xs, color: colors.orange, letterSpacing: 1.5, textTransform: 'uppercase' },
+  timelineTime: { fontFamily: typography.fontFamily.bold, fontSize: typography.fontSize.xs, color: colors.orangeInk, letterSpacing: 1.5, textTransform: 'uppercase' },
   timelineTitle: { marginTop: 4, fontFamily: typography.fontFamily.bold, fontSize: typography.fontSize.base, color: colors.text },
   timelineText: { marginTop: 3, fontFamily: typography.fontFamily.regular, fontSize: typography.fontSize.sm, color: colors.textSecondary, lineHeight: 20 },
   benefitList: { gap: 12 },
@@ -1567,7 +1540,7 @@ const styles = StyleSheet.create({
   aboutText: { fontFamily: typography.fontFamily.regular, fontSize: typography.fontSize.base, color: colors.textSecondary, lineHeight: 24 },
   aboutMetaRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, alignItems: 'center' },
   aboutMeta: { fontFamily: typography.fontFamily.medium, fontSize: typography.fontSize.xs, color: colors.textMuted },
-  aboutNote: { fontFamily: typography.fontFamily.medium, fontSize: typography.fontSize.xs, color: colors.orange, lineHeight: 18 },
+  aboutNote: { fontFamily: typography.fontFamily.medium, fontSize: typography.fontSize.xs, color: colors.orangeInk, lineHeight: 18 },
   supportGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
   supportCard: { width: '48%', padding: 14, borderRadius: 20, backgroundColor: colors.cardStrong, borderWidth: 1, borderColor: colors.border, gap: 6 },
   supportLabel: { fontFamily: typography.fontFamily.medium, fontSize: typography.fontSize.xs, color: colors.textMuted, textTransform: 'uppercase', letterSpacing: 1.2 },
@@ -1583,23 +1556,28 @@ const styles = StyleSheet.create({
   relatedThumbOverlay: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(17,17,17,0.18)' },
   relatedAccent: { width: 10, height: 10, borderRadius: 999, margin: 10 },
   relatedBody: { flex: 1, gap: 4 },
-  relatedCategory: { fontFamily: typography.fontFamily.medium, fontSize: typography.fontSize.xs, color: colors.orange, textTransform: 'uppercase', letterSpacing: 1.2 },
+  relatedCategory: { fontFamily: typography.fontFamily.medium, fontSize: typography.fontSize.xs, color: colors.orangeInk, textTransform: 'uppercase', letterSpacing: 1.2 },
   relatedReason: { fontFamily: typography.fontFamily.medium, fontSize: typography.fontSize.xs, color: colors.textMuted, lineHeight: 16 },
   relatedTitle: { fontFamily: typography.fontFamily.semiBold, fontSize: typography.fontSize.base, color: colors.text },
   relatedMeta: { fontFamily: typography.fontFamily.regular, fontSize: typography.fontSize.xs, color: colors.textSecondary },
   bottomSpacer: { height: 118 },
+  // Matches the centred app column rather than spanning the viewport: on a
+  // desktop browser this was a 1440px-wide bar under a 620px page.
   stickyBar: {
     position: 'absolute',
     left: 0,
     right: 0,
-    bottom: 0,
-    paddingHorizontal: 20,
-    paddingTop: 14,
-    paddingBottom: 28,
-    backgroundColor: 'rgba(255,248,241,0.98)',
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-    gap: 12,
+    bottom: space.md,
+    marginHorizontal: 'auto',
+    width: '100%',
+    maxWidth: CONTENT_COLUMN,
+    padding: space.lg,
+    borderRadius: radius.xl,
+    backgroundColor: colors.card,
+    borderWidth: 1,
+    borderColor: colors.border,
+    gap: space.md,
+    ...elevation.lg,
   },
   backdrop: {
     position: 'absolute',
@@ -1626,7 +1604,7 @@ const styles = StyleSheet.create({
   stickyCopy: { flex: 1, gap: 3 },
   stickyLabel: { fontFamily: typography.fontFamily.medium, fontSize: typography.fontSize.xs, color: colors.textMuted, textTransform: 'uppercase', letterSpacing: 1.2 },
   stickyTitle: { marginTop: 2, fontFamily: typography.fontFamily.bold, fontSize: typography.fontSize.base, color: colors.text },
-  stickyPrice: { marginTop: 2, fontFamily: typography.fontFamily.semiBold, fontSize: typography.fontSize.sm, color: colors.orange },
+  stickyPrice: { marginTop: 2, fontFamily: typography.fontFamily.semiBold, fontSize: typography.fontSize.sm, color: colors.orangeInk },
   reviewPanel: { gap: 12 },
   reviewHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', gap: 12 },
   reviewSubtitle: { fontFamily: typography.fontFamily.regular, fontSize: typography.fontSize.sm, lineHeight: 20, color: colors.textSecondary },
@@ -1636,7 +1614,7 @@ const styles = StyleSheet.create({
   panelEyebrow: {
     fontFamily: typography.fontFamily.medium,
     fontSize: typography.fontSize.xs,
-    color: colors.orange,
+    color: colors.orangeInk,
     textTransform: 'uppercase',
     letterSpacing: 2,
   },
@@ -1683,7 +1661,7 @@ const styles = StyleSheet.create({
     color: colors.text,
   },
   paymentLabelActive: {
-    color: colors.orange,
+    color: colors.orangeInk,
   },
   paymentDetail: {
     fontFamily: typography.fontFamily.regular,
@@ -1722,7 +1700,7 @@ const styles = StyleSheet.create({
     lineHeight: 16,
   },
   paymentActionLabelActive: {
-    color: colors.orange,
+    color: colors.orangeInk,
   },
   providerButton: {
     marginTop: 14,

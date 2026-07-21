@@ -1,14 +1,13 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { getMerchantAccount, updateMerchantAccount, type BackendMerchantField, type BackendPaymentMethodKey } from '../../src/backend';
 import { useAuth } from '../../src/auth';
 import { colors } from '../../src/theme/colors';
 import { organizerColors } from '../../src/theme/organizer';
 import { typography } from '../../src/theme/typography';
-import { LivedBackground } from '../../src/ui/lived-in';
 import { StatusSeal } from '../../src/ui/pictograms';
+import { Screen } from '../../src/ui/screen';
 
 type MerchantFormState = Record<BackendMerchantField['key'], string>;
 
@@ -109,68 +108,62 @@ export default function OrganizerPayouts() {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <LivedBackground />
-      <ScrollView style={styles.container} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <Text style={styles.kicker}>{providerName}</Text>
-        <Text style={styles.title}>{heading}</Text>
-        <Text style={styles.copy}>Complète les cases pour recevoir l’argent.</Text>
+    <Screen bleed>
+      <Text style={styles.kicker}>{providerName}</Text>
+      <Text style={styles.title}>{heading}</Text>
+      <Text style={styles.copy}>Complète les cases pour recevoir l’argent.</Text>
 
-        <View style={styles.statusCard}>
-          <StatusSeal pictogram={status === 'ready' ? 'check' : 'blocked'} tone={status === 'ready' ? 'green' : 'red'} label={status === 'ready' ? 'PRÊT' : 'À COMPLÉTER'} size={76} />
-          <Text style={styles.statusLabel}>Statut</Text>
-          <Text style={styles.statusValue}>{status === 'ready' ? 'Pret pour l encaissement' : 'Informations manquantes'}</Text>
-          {sessionId ? <Text style={styles.statusHint}>Session source: {sessionId}</Text> : null}
-        </View>
+      <View style={styles.statusCard}>
+        <StatusSeal pictogram={status === 'ready' ? 'check' : 'blocked'} tone={status === 'ready' ? 'green' : 'red'} label={status === 'ready' ? 'PRÊT' : 'À COMPLÉTER'} size={76} />
+        <Text style={styles.statusLabel}>Statut</Text>
+        <Text style={styles.statusValue}>{status === 'ready' ? 'Pret pour l encaissement' : 'Informations manquantes'}</Text>
+        {sessionId ? <Text style={styles.statusHint}>Session source: {sessionId}</Text> : null}
+      </View>
 
-        <View style={styles.formCard}>
-          {fields.map((field) => (
-            <View key={field.key} style={styles.fieldGroup}>
-              <Text style={styles.fieldLabel}>{field.label}</Text>
-              <TextInput
-                value={form[field.key]}
-                onChangeText={(value) => setForm((current) => ({ ...current, [field.key]: value }))}
-                placeholder={field.placeholder}
-                placeholderTextColor={organizerColors.textSecondary}
-                style={styles.input}
-              />
-            </View>
-          ))}
-        </View>
-
-        {!canSave ? (
-          <View style={styles.noticeCard}>
-            <Text style={styles.noticeTitle}>Connexion organisateur requise</Text>
-            <Text style={styles.noticeCopy}>
-              La page est prete pour les infos marchand, mais seule la session de l organisateur correspondant peut les enregistrer.
-            </Text>
+      <View style={styles.formCard}>
+        {fields.map((field) => (
+          <View key={field.key} style={styles.fieldGroup}>
+            <Text style={styles.fieldLabel}>{field.label}</Text>
+            <TextInput
+              value={form[field.key]}
+              onChangeText={(value) => setForm((current) => ({ ...current, [field.key]: value }))}
+              placeholder={field.placeholder}
+              placeholderTextColor={organizerColors.textSecondary}
+              style={styles.input}
+            />
           </View>
-        ) : null}
+        ))}
+      </View>
 
-        <Pressable accessibilityRole="button" accessibilityLabel="Enregistrer les informations de paiement" accessibilityState={{ disabled: !canSave || busy, busy }}
-          style={[styles.primaryButton, (!canSave || busy) && styles.primaryButtonDisabled]}
-          disabled={!canSave || busy}
-          onPress={handleSave}
-        >
-          <Text style={styles.primaryButtonText}>{busy ? 'Enregistrement...' : 'Enregistrer le compte marchand'}</Text>
-        </Pressable>
+      {!canSave ? (
+        <View style={styles.noticeCard}>
+          <Text style={styles.noticeTitle}>Connexion organisateur requise</Text>
+          <Text style={styles.noticeCopy}>
+            La page est prete pour les infos marchand, mais seule la session de l organisateur correspondant peut les enregistrer.
+          </Text>
+        </View>
+      ) : null}
 
-        <Pressable accessibilityRole="button" accessibilityLabel="Retour" style={styles.backButton} onPress={() => router.back()}>
-          <Text style={styles.backText}>Retour</Text>
-        </Pressable>
-      </ScrollView>
-    </SafeAreaView>
+      <Pressable accessibilityRole="button" accessibilityLabel="Enregistrer les informations de paiement" accessibilityState={{ disabled: !canSave || busy, busy }}
+        style={[styles.primaryButton, (!canSave || busy) && styles.primaryButtonDisabled]}
+        disabled={!canSave || busy}
+        onPress={handleSave}
+      >
+        <Text style={styles.primaryButtonText}>{busy ? 'Enregistrement...' : 'Enregistrer le compte marchand'}</Text>
+      </Pressable>
+
+      <Pressable accessibilityRole="button" accessibilityLabel="Retour" style={styles.backButton} onPress={() => router.back()}>
+        <Text style={styles.backText}>Retour</Text>
+      </Pressable>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: organizerColors.background },
-  container: { flex: 1 },
-  content: { paddingHorizontal: 18, paddingTop: 14, paddingBottom: 26, gap: 14 },
   kicker: {
     fontFamily: typography.fontFamily.medium,
     fontSize: typography.fontSize.xs,
-    color: colors.orange,
+    color: colors.orangeInk,
     textTransform: 'uppercase',
     letterSpacing: 2.4,
   },
@@ -222,7 +215,7 @@ const styles = StyleSheet.create({
     borderColor: organizerColors.borderStrong,
     gap: 6,
   },
-  noticeTitle: { fontFamily: typography.fontFamily.bold, fontSize: typography.fontSize.sm, color: colors.orange },
+  noticeTitle: { fontFamily: typography.fontFamily.bold, fontSize: typography.fontSize.sm, color: colors.orangeInk },
   noticeCopy: { fontFamily: typography.fontFamily.regular, fontSize: typography.fontSize.sm, lineHeight: 20, color: organizerColors.textSecondary },
   primaryButton: {
     alignItems: 'center',
@@ -243,5 +236,5 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: organizerColors.borderStrong,
   },
-  backText: { fontFamily: typography.fontFamily.bold, fontSize: typography.fontSize.sm, color: colors.orange },
+  backText: { fontFamily: typography.fontFamily.bold, fontSize: typography.fontSize.sm, color: colors.orangeInk },
 });

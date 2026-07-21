@@ -1,14 +1,13 @@
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors } from '../../src/theme/colors';
 import { organizerColors } from '../../src/theme/organizer';
 import { shadow } from '../../src/theme/shadows';
 import { typography } from '../../src/theme/typography';
 import { useAuth } from '../../src/auth';
-import { LivedBackground } from '../../src/ui/lived-in';
 import { Pictogram } from '../../src/ui/pictograms';
 import type { PictogramKey, VisualTone } from '../../src/ui/visual-language';
+import { Screen } from '../../src/ui/screen';
 
 export default function OrganizerProfile() {
   const { user, signOut } = useAuth();
@@ -22,46 +21,43 @@ export default function OrganizerProfile() {
     .toUpperCase();
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <LivedBackground />
-      <ScrollView style={styles.container} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <Text style={styles.kicker}>ORGANISATEUR</Text>
-        <Text style={styles.title}>Mon compte</Text>
+    <Screen bleed>
+      <Text style={styles.kicker}>ORGANISATEUR</Text>
+      <Text style={styles.title}>Mon compte</Text>
 
-        <View style={styles.profileCard}>
-          <View style={styles.avatar}>
-            <Text style={styles.avatarText}>{initials}</Text>
-          </View>
-          <View style={styles.profileCopy}>
-            <Text style={styles.name}>{user?.name}</Text>
-            <Text style={styles.email}>{user?.email}</Text>
-            <View style={styles.rolePill}>
-              <Text style={styles.roleText}>MODE ORGANISATEUR</Text>
-            </View>
+      <View style={styles.profileCard}>
+        <View style={styles.avatar}>
+          <Text style={styles.avatarText}>{initials}</Text>
+        </View>
+        <View style={styles.profileCopy}>
+          <Text style={styles.name}>{user?.name}</Text>
+          <Text style={styles.email}>{user?.email}</Text>
+          <View style={styles.rolePill}>
+            <Text style={styles.roleText}>MODE ORGANISATEUR</Text>
           </View>
         </View>
+      </View>
 
-        <View style={styles.actionList}>
-          <Action pictogram="art" tone="orange"
-            label="Mon image"
-            value="Logo et couleurs"
-            onPress={() => router.push('/(organizer)/brand-kit' as never)}
-          />
-          <Action pictogram="ticket" tone="green" label="Paiements" value="Compte marchand" onPress={() => router.push('/(organizer)/payouts' as never)} />
-          <Action pictogram="help" tone="blue" label="Aide" value="Contacter YoTicks" onPress={() => router.push('/(organizer)/support' as never)} />
-        </View>
+      <View style={styles.actionList}>
+        <Action pictogram="art" tone="orange"
+          label="Mon image"
+          value="Logo et couleurs"
+          onPress={() => router.push('/(organizer)/brand-kit' as never)}
+        />
+        <Action pictogram="ticket" tone="green" label="Paiements" value="Compte marchand" onPress={() => router.push('/(organizer)/payouts' as never)} />
+        <Action pictogram="help" tone="blue" label="Aide" value="Contacter YoTicks" onPress={() => router.push('/(organizer)/support' as never)} />
+      </View>
 
-        <Pressable accessibilityRole="button" accessibilityLabel="Se déconnecter"
-          style={styles.logout}
-          onPress={() => {
-            signOut();
-            router.replace('/auth/login');
-          }}
-        >
-          <Text style={styles.logoutText}>Se déconnecter</Text>
-        </Pressable>
-      </ScrollView>
-    </SafeAreaView>
+      <Pressable accessibilityRole="button" accessibilityLabel="Se déconnecter"
+        style={styles.logout}
+        onPress={() => {
+          signOut();
+          router.replace('/auth/login');
+        }}
+      >
+        <Text style={styles.logoutText}>Se déconnecter</Text>
+      </Pressable>
+    </Screen>
   );
 }
 
@@ -79,13 +75,10 @@ function Action({ pictogram, tone, label, value, onPress }: { pictogram: Pictogr
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: organizerColors.background },
-  container: { flex: 1 },
-  content: { paddingHorizontal: 18, paddingTop: 14, paddingBottom: 26, gap: 16 },
   kicker: {
     fontFamily: typography.fontFamily.medium,
     fontSize: typography.fontSize.xs,
-    color: colors.orange,
+    color: colors.orangeInk,
     textTransform: 'uppercase',
     letterSpacing: 2.4,
   },
@@ -124,7 +117,7 @@ const styles = StyleSheet.create({
   roleText: {
     fontFamily: typography.fontFamily.medium,
     fontSize: typography.fontSize.xs,
-    color: colors.orange,
+    color: colors.orangeInk,
     textTransform: 'uppercase',
     letterSpacing: 1.2,
   },
@@ -146,7 +139,7 @@ const styles = StyleSheet.create({
     fontSize: typography.fontSize.xs,
     color: organizerColors.textSecondary,
   },
-  actionArrow: { fontFamily: typography.fontFamily.bold, fontSize: 24, color: colors.orange, lineHeight: 24 },
+  actionArrow: { fontFamily: typography.fontFamily.bold, fontSize: 24, color: colors.orangeInk, lineHeight: 24 },
   logout: {
     marginTop: 6,
     alignItems: 'center',
@@ -156,5 +149,5 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: organizerColors.borderStrong,
   },
-  logoutText: { fontFamily: typography.fontFamily.bold, fontSize: typography.fontSize.sm, color: colors.orange },
+  logoutText: { fontFamily: typography.fontFamily.bold, fontSize: typography.fontSize.sm, color: colors.orangeInk },
 });

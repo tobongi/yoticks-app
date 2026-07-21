@@ -1,45 +1,39 @@
-import { Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors } from '../../src/theme/colors';
 import { organizerColors } from '../../src/theme/organizer';
 import { typography } from '../../src/theme/typography';
-import { LivedBackground, PrimaryAction } from '../../src/ui/lived-in';
+import { PrimaryAction } from '../../src/ui/lived-in';
 import { Pictogram } from '../../src/ui/pictograms';
+import { Screen } from '../../src/ui/screen';
 
 const supportEmail = process.env.EXPO_PUBLIC_SUPPORT_EMAIL || 'support@yoticks.app';
 
 export default function OrganizerSupport() {
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <LivedBackground />
-      <ScrollView style={styles.container} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <Text style={styles.kicker}>AIDE</Text>
-        <Text style={styles.title}>Un problème ?</Text>
-        <View style={styles.helpArt}><Pictogram pictogram="help" tone="blue" size={126} /></View>
+    <Screen bleed>
+      <Text style={styles.kicker}>AIDE</Text>
+      <Text style={styles.title}>Un problème ?</Text>
+      <View style={styles.helpArt}><Pictogram pictogram="help" tone="blue" size={126} /></View>
 
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>SUPPORT YOTICKS</Text>
-          <Text style={styles.cardValue}>{supportEmail}</Text>
-          <PrimaryAction label="Écrire au support" pictogram="talk" tone="blue" onPress={() => void Linking.openURL(`mailto:${supportEmail}?subject=Support%20organisateur%20YoTicks`)} />
-        </View>
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>SUPPORT YOTICKS</Text>
+        <Text style={styles.cardValue}>{supportEmail}</Text>
+        <PrimaryAction label="Écrire au support" pictogram="talk" tone="blue" onPress={() => void Linking.openURL(`mailto:${supportEmail}?subject=Support%20organisateur%20YoTicks`)} />
+      </View>
 
-        <Pressable accessibilityRole="button" accessibilityLabel="Retour" style={styles.backButton} onPress={() => router.back()}>
-          <Text style={styles.backText}>Retour</Text>
-        </Pressable>
-      </ScrollView>
-    </SafeAreaView>
+      <Pressable accessibilityRole="button" accessibilityLabel="Retour" style={styles.backButton} onPress={() => router.back()}>
+        <Text style={styles.backText}>Retour</Text>
+      </Pressable>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: organizerColors.background },
-  container: { flex: 1 },
-  content: { paddingHorizontal: 18, paddingTop: 14, paddingBottom: 26, gap: 14 },
   kicker: {
     fontFamily: typography.fontFamily.medium,
     fontSize: typography.fontSize.xs,
-    color: colors.orange,
+    color: colors.orangeInk,
     textTransform: 'uppercase',
     letterSpacing: 2.4,
   },
@@ -70,5 +64,5 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: organizerColors.borderStrong,
   },
-  backText: { fontFamily: typography.fontFamily.bold, fontSize: typography.fontSize.sm, color: colors.orange },
+  backText: { fontFamily: typography.fontFamily.bold, fontSize: typography.fontSize.sm, color: colors.orangeInk },
 });

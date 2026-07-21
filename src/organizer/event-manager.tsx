@@ -13,7 +13,7 @@ import {
   type BackendEvent,
 } from '../backend';
 import { useAuth } from '../auth';
-import { useLiveRefresh } from '../live-refresh';
+import { REFRESH, useLiveRefresh } from '../live-refresh';
 import { ActionTile, Chip, HeroPanel, InlineScroll, LivedBackground, ScreenHeader, SectionBlock, StatRow } from '../ui/lived-in';
 import { Pictogram, TicketStubArt } from '../ui/pictograms';
 import { usePhoneLayout } from '../ui/responsive';
@@ -35,7 +35,7 @@ function makeEmptyForm(organizerName: string): EventFormState {
     price: '',
     description: '',
     organizer: organizerName,
-    color: colors.orange,
+    color: colors.orangeInk,
     status: 'draft',
     coverImageUrl: '',
     venueMapUrl: '',
@@ -49,7 +49,7 @@ export function OrganizerEventManager({ mode = 'edit' }: OrganizerEventManagerPr
   const [event, setEvent] = useState<BackendEvent | null>(null);
   const [form, setForm] = useState<EventFormState>(() => makeEmptyForm('YoTicks Organizer'));
   const [isSaving, setIsSaving] = useState(false);
-  const refreshTick = useLiveRefresh(2600);
+  const refreshTick = useLiveRefresh(REFRESH.normal);
   const layout = usePhoneLayout();
   const isCreateMode = mode === 'create';
 
@@ -274,7 +274,7 @@ export function OrganizerEventManager({ mode = 'edit' }: OrganizerEventManagerPr
 
         <View style={styles.footerActions}>
           <Pressable accessibilityRole="button" accessibilityLabel="Enregistrer l'événement" accessibilityState={{ disabled: isSaving, busy: isSaving }} style={[styles.primaryButton, isSaving && styles.buttonDisabled]} onPress={handleSave} disabled={isSaving}>
-            <Text style={styles.primaryButtonText}>{isSaving ? 'Sauvegarde...' : isCreateMode ? 'Creer' : 'Sauver'}</Text>
+            <Text style={styles.primaryButtonText}>{isSaving ? 'Sauvegarde...' : isCreateMode ? 'Créer' : 'Sauver'}</Text>
           </Pressable>
         </View>
       </ScrollView>

@@ -1,32 +1,59 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ImageBackground, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { FALLBACK_EVENTS, getHomeData, listEvents, type BackendEvent } from '../../src/backend';
+import { getHomeData, listEvents, type BackendEvent } from '../../src/backend';
 import { useAuth } from '../../src/auth';
 import { buildHomeDigest } from '../../src/app-redesign';
 import { getOnboardingPreferences, saveOnboardingPreferences, type OnboardingPreferences } from '../../src/onboarding-prefs';
 import { getCityKey } from '../../src/cities';
 import { useLiveRefresh } from '../../src/live-refresh';
-import { CalendarIcon } from '../../src/icons';
+import { CalendarIcon, MapIcon } from '../../src/icons';
 import { SavedEventButton } from '../../src/saved-event-button';
 import { colors } from '../../src/theme/colors';
 import { typography } from '../../src/theme/typography';
-import { ActionTile, Chip, HeroPanel, LivedBackground, PrimaryAction, ScreenHeader, SectionBlock, StatRow, VisualCard } from '../../src/ui/lived-in';
-import { Pictogram, TicketStubArt } from '../../src/ui/pictograms';
+import { radius, space, stroke } from '../../src/theme/tokens';
+import { elevation } from '../../src/theme/shadows';
+import {
+  Chip,
+  EmptyState,
+  ErrorState,
+  SectionBlock,
+  ScreenHeader,
+  SkeletonCard,
+  VisualCard,
+} from '../../src/ui/lived-in';
+import { Screen } from '../../src/ui/screen';
+import { Pictogram } from '../../src/ui/pictograms';
 import { getCategoryVisual } from '../../src/ui/visual-language';
-import { usePhoneLayout } from '../../src/ui/responsive';
+import { useLayout } from '../../src/ui/responsive';
 
+type LoadState = 'loading' | 'ready' | 'error';
+
+/**
+ * Home.
+ *
+ * Restructured around one question: "what am I doing tonight?"
+ *
+ * The previous version answered that fifth. It opened with a generic panel,
+ * then three action tiles — two of which ("Trouver", "Mes QR") were exact
+ * duplicates of tabs already in the bottom bar, and a third ("Près de moi")
+ * that pushed to the same route as the first. Those are gone. Navigation
+ * belongs in the nav; the home screen's job is content.
+ *
+ * What replaces them is a real spotlight: the event itself, with its own
+ * photograph, at the top of the first viewport, with one action on it.
+ */
 export default function Home() {
-  const { token, user } = useAuth();
-  const [events, setEvents] = useState<BackendEvent[]>(FALLBACK_EVENTS);
-  const [featured, setFeatured] = useState<BackendEvent[]>(FALLBACK_EVENTS.slice(0, 3));
-  const [upcoming, setUpcoming] = useState<BackendEvent[]>(FALLBACK_EVENTS.slice(0, 6));
+  const { user } = useAuth();
+  const [events, setEvents] = useState<BackendEvent[]>([]);
+  const [featured, setFeatured] = useState<BackendEvent[]>([]);
+  const [upcoming, setUpcoming] = useState<BackendEvent[]>([]);
+  const [state, setState] = useState<LoadState>('loading');
   const [prefs, setPrefs] = useState<OnboardingPreferences | null>(null);
   const [selectedCity, setSelectedCity] = useState<string | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
-  const refreshTick = useLiveRefresh(2500);
-  const layout = usePhoneLayout();
+  const refreshTick = useLiveRefresh();
+  const layout = useLayout();
 
   useEffect(() => {
     getOnboardingPreferences().then((next) => {
@@ -36,33 +63,63 @@ export default function Home() {
     });
   }, []);
 
-  useEffect(() => {
-    let active = true;
-    Promise.all([listEvents(), getHomeData(token ?? undefined, selectedCity ?? undefined)]).then(([nextEvents, home]) => {
-      if (!active) {
-        return;
-      }
-      setEvents(nextEvents);
-      setFeatured(home.featuredEvents);
-      setUpcoming(home.upcomingEvents);
-    });
-    return () => {
-      active = false;
-    };
-  }, [refreshTick, selectedCity, token]);
+  const load = useCallback(
+    (signal: { cancelled: boolean }) => {
+      Promise.all([listEvents(), getHomeData(undefined, selectedCity ?? undefined)])
+        .then(([nextEvents, home]) => {
+          if (signal.cancelled) {
+            return;
+          }
+          setEvents(nextEvents);
+          setFeatured(home.featuredEvents);
+          setUpcoming(home.upcomingEvents);
+          setState('ready');
+        })
+        // Previously absent: a failed request left demo data on screen with
+        // no indication anything had gone wrong.
+        .catch(() => {
+          if (!signal.cancelled) {
+            setState('error');
+          }
+        });
+    },
+    [selectedCity],
+  );
 
-  const filtered = useMemo(() => {
-    return events.filter((event) => {
-      const cityMatch = !selectedCity || getCityKey(event.location) === getCityKey(selectedCity);
-      const categoryMatch = selectedCategory === 'all' || event.category.toLowerCase() === selectedCategory.toLowerCase();
-      return cityMatch && categoryMatch;
-    });
-  }, [events, selectedCategory, selectedCity]);
+  useEffect(() => {
+    const signal = { cancelled: false };
+    load(signal);
+    return () => {
+      signal.cancelled = true;
+    };
+  }, [load, refreshTick]);
+
+  const retry = useCallback(() => {
+    setState('loading');
+    load({ cancelled: false });
+  }, [load]);
+
+  const filtered = useMemo(
+    () =>
+      events.filter((event) => {
+        const cityMatch = !selectedCity || getCityKey(event.location) === getCityKey(selectedCity);
+        const categoryMatch =
+          selectedCategory === 'all' || event.category.toLowerCase() === selectedCategory.toLowerCase();
+        return cityMatch && categoryMatch;
+      }),
+    [events, selectedCategory, selectedCity],
+  );
 
   const digest = useMemo(() => buildHomeDigest(filtered, featured, upcoming), [featured, filtered, upcoming]);
-  const spotlight = digest.spotlight ?? filtered[0] ?? events[0];
-  const cityOptions = useMemo(() => ['Tout', ...Array.from(new Set(events.map((event) => event.location))).slice(0, 5)], [events]);
-  const categoryOptions = useMemo(() => ['all', ...digest.categories.slice(0, 5).map((item) => item.label)], [digest.categories]);
+  const spotlight = digest.spotlight ?? filtered[0] ?? events[0] ?? null;
+  const cityOptions = useMemo(
+    () => ['Tout', ...Array.from(new Set(events.map((event) => event.location))).slice(0, 5)],
+    [events],
+  );
+  const categoryOptions = useMemo(
+    () => ['all', ...digest.categories.slice(0, 5).map((item) => item.label)],
+    [digest.categories],
+  );
 
   const persistPrefs = async (city: string | null, category: string) => {
     const nextPrefs: OnboardingPreferences = {
@@ -74,117 +131,285 @@ export default function Home() {
     await saveOnboardingPreferences({ interests: nextPrefs.interests, city: nextPrefs.city });
   };
 
-  const title = user?.name ? `Salut ${user.name.split(' ')[0]}` : 'Salut';
+  const greeting = user?.name ? `Salut ${user.name.split(' ')[0]}` : 'Salut';
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <LivedBackground />
-      <ScrollView
-        style={styles.container}
-        contentContainerStyle={[styles.content, { paddingHorizontal: layout.screenPadding, paddingBottom: layout.isCompact ? 96 : 110, gap: layout.sectionGap }]}
-        showsVerticalScrollIndicator={false}
+    <Screen>
+      <ScreenHeader
+        eyebrow={selectedCity ?? prefs?.city ?? 'Partout'}
+        title={greeting}
+        side={
+          <View style={styles.mark}>
+            <Text style={styles.markText}>YT</Text>
+          </View>
+        }
+      />
+
+      {state === 'error' ? (
+        <ErrorState title="Pas de connexion" onRetry={retry} />
+      ) : state === 'loading' ? (
+        <HomeSkeleton />
+      ) : spotlight ? (
+        <Spotlight event={spotlight} minHeight={layout.heroImageMinHeight} />
+      ) : null}
+
+      {state === 'ready' && events.length > 0 ? (
+        <>
+          <SectionBlock eyebrow="Filtres" title="Choix rapides">
+            <View style={styles.chipWrap}>
+              {cityOptions.map((city) => {
+                const active = (city === 'Tout' && !selectedCity) || city === selectedCity;
+                return (
+                  <Chip
+                    key={city}
+                    label={city}
+                    active={active}
+                    pictogram="map"
+                    tone="yellow"
+                    onPress={() => {
+                      const nextCity = city === 'Tout' ? null : city;
+                      setSelectedCity(nextCity);
+                      void persistPrefs(nextCity, selectedCategory);
+                    }}
+                  />
+                );
+              })}
+            </View>
+            <View style={styles.chipWrap}>
+              {categoryOptions.map((category) => {
+                const visual = getCategoryVisual(category === 'all' ? 'Festival' : category);
+                return (
+                  <Chip
+                    key={category}
+                    label={category === 'all' ? 'Tout' : visual.label}
+                    pictogram={visual.key}
+                    tone={visual.tone}
+                    active={selectedCategory === category}
+                    onPress={() => {
+                      setSelectedCategory(category);
+                      void persistPrefs(selectedCity, category);
+                    }}
+                  />
+                );
+              })}
+            </View>
+          </SectionBlock>
+
+          <SectionBlock eyebrow="Pour toi" title="À voir">
+            <View style={styles.stack}>
+              {filtered.length > 0 ? (
+                filtered.slice(0, 5).map((event) => (
+                  <VisualCard
+                    key={event.id}
+                    title={event.title}
+                    subtitle={event.category}
+                    meta={`${event.location} • ${event.date}`}
+                    imageUrl={event.imageUrl}
+                    badge={event.price}
+                    onPress={() => router.push({ pathname: '/event/[id]', params: { id: event.id } })}
+                    right={<SavedEventButton compact eventId={event.id} />}
+                  />
+                ))
+              ) : (
+                <EmptyState
+                  art={<Pictogram pictogram="search" tone="blue" size={72} />}
+                  title="Rien avec ces filtres"
+                  action={
+                    <Chip
+                      label="Tout voir"
+                      pictogram="celebrate"
+                      onPress={() => {
+                        setSelectedCity(null);
+                        setSelectedCategory('all');
+                        void persistPrefs(null, 'all');
+                      }}
+                    />
+                  }
+                />
+              )}
+            </View>
+          </SectionBlock>
+
+          {featured.length > 0 ? (
+            <SectionBlock eyebrow="Bientôt" title="Petite sélection">
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.rail}>
+                {featured.slice(0, 6).map((event) => (
+                  <PosterCard
+                    key={event.id}
+                    event={event}
+                    width={layout.featuredPosterWidth}
+                    height={layout.featuredPosterHeight}
+                  />
+                ))}
+              </ScrollView>
+            </SectionBlock>
+          ) : null}
+        </>
+      ) : null}
+    </Screen>
+  );
+}
+
+/**
+ * The spotlight.
+ *
+ * The event's own photograph carries the panel. Text sits on a scrim that
+ * is contrast-tested against a worst-case white image, and the whole card is
+ * one large target rather than a small button inside a bigger card — this is
+ * a product used one-handed while walking.
+ */
+function Spotlight({ event, minHeight }: { event: BackendEvent; minHeight: number }) {
+  const visual = getCategoryVisual(event.category);
+
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={`Ce soir : ${event.title}, ${event.location}, ${event.date}. Voir l’événement.`}
+      onPress={() => router.push({ pathname: '/event/[id]', params: { id: event.id } })}
+      style={({ pressed }) => [styles.spotlight, pressed && styles.spotlightPressed]}
+    >
+      <ImageBackground
+        source={{ uri: event.imageUrl }}
+        style={[styles.spotlightImage, { minHeight }]}
+        imageStyle={styles.spotlightImageInner}
       >
-        <ScreenHeader eyebrow={selectedCity ?? prefs?.city ?? 'Partout'} title={title} side={<View style={styles.mark}><Text style={styles.markText}>YT</Text></View>} />
+        <View style={styles.spotlightScrim} />
 
-        <HeroPanel
-          eyebrow="Ce soir"
-          title={spotlight?.title ?? 'Sortir sans chercher'}
-          subtitle={spotlight ? `${spotlight.location} • ${spotlight.date}` : 'Concerts, talks, sport, food'}
-          art={<TicketStubArt size={96} />}
-        >
-          <StatRow items={digest.stats} />
-          <PrimaryAction label="Voir le billet" pictogram="ticket" onPress={() => spotlight && router.push({ pathname: '/event/[id]', params: { id: spotlight.id } })} />
-        </HeroPanel>
-
-        <View style={styles.tileGrid}>
-          <ActionTile icon={<Pictogram pictogram="search" size={46} />} label="Trouver" style={{ width: layout.tileWidth }} onPress={() => router.push('/(tabs)/search')} />
-          <ActionTile icon={<Pictogram pictogram="ticket" tone="blue" size={46} />} label="Mes QR" tone="blue" style={{ width: layout.tileWidth }} onPress={() => router.push('/(tabs)/tickets')} />
-          <ActionTile icon={<Pictogram pictogram="map" tone="yellow" size={46} />} label="Près de moi" hint={selectedCity ?? undefined} tone="yellow" style={{ width: layout.tileWidth }} onPress={() => router.push('/(tabs)/search')} />
+        <View style={styles.spotlightTop}>
+          <View style={styles.spotlightEyebrow}>
+            <Text style={styles.spotlightEyebrowText}>Ce soir</Text>
+          </View>
+          <View style={styles.spotlightPrice}>
+            <Text style={styles.spotlightPriceText}>{event.price}</Text>
+          </View>
         </View>
 
-        <SectionBlock eyebrow="Filtres" title="Choix rapides">
-          <View style={styles.chipWrap}>
-            {cityOptions.map((city) => {
-              const active = (city === 'Tout' && !selectedCity) || city === selectedCity;
-              return (
-                <Chip
-                  key={city}
-                  label={city}
-                  active={active}
-                  pictogram="map"
-                  tone="yellow"
-                  onPress={() => {
-                    const nextCity = city === 'Tout' ? null : city;
-                    setSelectedCity(nextCity);
-                    void persistPrefs(nextCity, selectedCategory);
-                  }}
-                />
-              );
-            })}
+        <View style={styles.spotlightBody}>
+          <View style={styles.spotlightCategory}>
+            <Pictogram pictogram={visual.key} tone={visual.tone} size={28} />
+            <Text style={styles.spotlightCategoryText}>{visual.label}</Text>
           </View>
-          <View style={styles.chipWrap}>
-            {categoryOptions.map((category) => {
-              const visual = getCategoryVisual(category === 'all' ? 'Festival' : category);
-              return <Chip key={category} label={category === 'all' ? 'Tout' : visual.label} pictogram={visual.key} tone={visual.tone} active={selectedCategory === category} onPress={() => { setSelectedCategory(category); void persistPrefs(selectedCity, category); }} />;
-            })}
-          </View>
-        </SectionBlock>
 
-        <SectionBlock eyebrow="Pour toi" title="A voir">
-          <View style={styles.stack}>
-            {filtered.slice(0, 5).map((event) => (
-              <VisualCard
-                key={event.id}
-                title={event.title}
-                subtitle={event.category}
-                meta={`${event.location} • ${event.date}`}
-                imageUrl={event.imageUrl}
-                badge={event.price}
-                onPress={() => router.push({ pathname: '/event/[id]', params: { id: event.id } })}
-                right={<SavedEventButton compact eventId={event.id} />}
-              />
-            ))}
-          </View>
-        </SectionBlock>
+          <Text style={styles.spotlightTitle} numberOfLines={3}>
+            {event.title}
+          </Text>
 
-        <SectionBlock eyebrow="Bientot" title="Petite selection">
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.rail}>
-            {featured.slice(0, 6).map((event) => (
-              <Pressable accessibilityRole="button" accessibilityLabel={`Ouvrir ${event.title}`} key={event.id} style={[styles.poster, { width: layout.featuredPosterWidth }]} onPress={() => router.push({ pathname: '/event/[id]', params: { id: event.id } })}>
-                <ImageBackground source={{ uri: event.imageUrl }} style={[styles.posterImage, { height: layout.featuredPosterHeight }]} imageStyle={styles.posterImageInner}>
-                  <View style={styles.posterShade} />
-                  <Text style={styles.posterCategory}>{event.category}</Text>
-                  <Text style={styles.posterTitle} numberOfLines={2}>{event.title}</Text>
-                  <View style={styles.posterMeta}>
-                    <CalendarIcon size={12} color={colors.bg} />
-                    <Text style={styles.posterMetaText}>{event.date}</Text>
-                  </View>
-                </ImageBackground>
-              </Pressable>
-            ))}
-          </ScrollView>
-        </SectionBlock>
-      </ScrollView>
-    </SafeAreaView>
+          <View style={styles.spotlightMetaRow}>
+            <View style={styles.spotlightMeta}>
+              <MapIcon size={14} color={colors.onImage} />
+              <Text style={styles.spotlightMetaText} numberOfLines={1}>
+                {event.location}
+              </Text>
+            </View>
+            <View style={styles.spotlightMeta}>
+              <CalendarIcon size={14} color={colors.onImage} />
+              <Text style={styles.spotlightMetaText} numberOfLines={1}>
+                {event.date}
+              </Text>
+            </View>
+          </View>
+        </View>
+      </ImageBackground>
+    </Pressable>
+  );
+}
+
+function PosterCard({ event, width, height }: { event: BackendEvent; width: number; height: number }) {
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={`${event.title}, ${event.date}`}
+      style={({ pressed }) => [{ width }, pressed && styles.spotlightPressed]}
+      onPress={() => router.push({ pathname: '/event/[id]', params: { id: event.id } })}
+    >
+      <ImageBackground
+        source={{ uri: event.imageUrl }}
+        style={[styles.poster, { height }]}
+        imageStyle={styles.posterInner}
+      >
+        <View style={styles.posterScrim} />
+        <Text style={styles.posterCategory} numberOfLines={1}>
+          {event.category}
+        </Text>
+        <Text style={styles.posterTitle} numberOfLines={2}>
+          {event.title}
+        </Text>
+        <View style={styles.spotlightMeta}>
+          <CalendarIcon size={13} color={colors.onImage} />
+          <Text style={styles.posterMetaText} numberOfLines={1}>
+            {event.date}
+          </Text>
+        </View>
+      </ImageBackground>
+    </Pressable>
+  );
+}
+
+function HomeSkeleton() {
+  return (
+    <View style={styles.stack}>
+      <View style={styles.spotlightSkeleton} />
+      <SkeletonCard />
+      <SkeletonCard />
+      <SkeletonCard />
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: colors.bgDeep },
-  container: { flex: 1 },
-  content: { paddingTop: 14 },
-  mark: { width: 52, height: 52, borderRadius: 18, backgroundColor: colors.black, alignItems: 'center', justifyContent: 'center' },
-  markText: { fontFamily: typography.fontFamily.bold, fontSize: typography.fontSize.sm, color: colors.ivory, letterSpacing: 2.4 },
-  tileGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-  chipWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  stack: { gap: 12 },
-  rail: { gap: 12, paddingRight: 8 },
-  poster: {},
-  posterImage: { borderRadius: 26, overflow: 'hidden', padding: 14, justifyContent: 'flex-end', gap: 8 },
-  posterImageInner: { borderRadius: 26 },
-  posterShade: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(17,17,17,0.28)' },
-  posterCategory: { fontFamily: typography.fontFamily.medium, fontSize: typography.fontSize.sm, color: colors.ivory },
-  posterTitle: { fontFamily: typography.fontFamily.bold, fontSize: typography.fontSize.lg, color: colors.ivory },
-  posterMeta: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  posterMetaText: { fontFamily: typography.fontFamily.medium, fontSize: typography.fontSize.sm, color: colors.ivory },
+  mark: {
+    width: 48,
+    height: 48,
+    borderRadius: radius.md,
+    backgroundColor: colors.black,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  markText: { ...typography.text.caption, color: colors.onDark, letterSpacing: 2 },
+
+  chipWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm },
+  stack: { gap: space.md },
+  rail: { gap: space.md, paddingRight: space.sm, paddingVertical: 2 },
+
+  spotlight: { borderRadius: radius.xxl, overflow: 'hidden', ...elevation.md },
+  spotlightPressed: { opacity: 0.94, transform: [{ scale: 0.99 }] },
+  spotlightImage: { justifyContent: 'space-between', padding: space.lg },
+  spotlightImageInner: { borderRadius: radius.xxl },
+  spotlightScrim: { ...StyleSheet.absoluteFill, backgroundColor: colors.imageScrim },
+  spotlightTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', gap: space.sm },
+  spotlightEyebrow: {
+    borderRadius: radius.pill,
+    backgroundColor: colors.orange,
+    paddingHorizontal: space.md,
+    paddingVertical: space.xs + 2,
+  },
+  spotlightEyebrowText: { ...typography.text.eyebrow, color: colors.onAccent },
+  spotlightPrice: {
+    borderRadius: radius.pill,
+    backgroundColor: 'rgba(255,255,255,0.94)',
+    paddingHorizontal: space.md,
+    paddingVertical: space.xs + 2,
+  },
+  spotlightPriceText: { ...typography.text.label, color: colors.text },
+  spotlightBody: { gap: space.sm },
+  spotlightCategory: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
+  spotlightCategoryText: { ...typography.text.label, color: colors.onImage },
+  spotlightTitle: { ...typography.text.display, color: colors.onImage },
+  spotlightMetaRow: { flexDirection: 'row', flexWrap: 'wrap', gap: space.md, marginTop: space.xxs },
+  spotlightMeta: { flexDirection: 'row', alignItems: 'center', gap: space.xs + 2, flexShrink: 1 },
+  spotlightMetaText: { ...typography.text.meta, color: colors.onImage },
+  spotlightSkeleton: {
+    minHeight: 280,
+    borderRadius: radius.xxl,
+    backgroundColor: colors.skeleton,
+  },
+
+  poster: { borderRadius: radius.xl, overflow: 'hidden', padding: space.md, justifyContent: 'flex-end', gap: space.xs },
+  posterInner: { borderRadius: radius.xl },
+  posterScrim: { ...StyleSheet.absoluteFill, backgroundColor: colors.imageScrim },
+  posterCategory: { ...typography.text.caption, color: colors.onImage },
+  posterTitle: { ...typography.text.heading, color: colors.onImage },
+  posterMetaText: { ...typography.text.meta, color: colors.onImage },
+
+  spotlightBorder: { borderWidth: stroke.hairline, borderColor: colors.border },
 });

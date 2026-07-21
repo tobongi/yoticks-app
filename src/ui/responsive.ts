@@ -1,10 +1,25 @@
 import { useMemo } from 'react';
 import { useWindowDimensions } from 'react-native';
-import { getPhoneLayout, type PhoneLayout } from './responsive-core';
+import { getLayout, type PhoneLayout } from './responsive-core';
 
-export function usePhoneLayout() {
+/**
+ * Current viewport layout. Re-computes on rotation and on browser resize.
+ */
+export function useLayout(): PhoneLayout {
   const { width } = useWindowDimensions();
-  return useMemo(() => getPhoneLayout(width), [width]);
+  return useMemo(() => getLayout(width), [width]);
 }
 
-export { getPhoneLayout, type PhoneLayout };
+/**
+ * @deprecated Prefer {@link useLayout}. Kept so existing screens keep working.
+ */
+export const usePhoneLayout = useLayout;
+
+export {
+  getLayout,
+  getPhoneLayout,
+  getBreakpoint,
+  BREAKPOINTS,
+  type Breakpoint,
+  type PhoneLayout,
+} from './responsive-core';

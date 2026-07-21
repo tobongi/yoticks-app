@@ -1,11 +1,10 @@
-import { Alert, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors } from '../src/theme/colors';
 import { typography } from '../src/theme/typography';
 import { ArrowLeftIcon, ChevronRightIcon } from '../src/icons';
-import { LivedBackground } from '../src/ui/lived-in';
 import { Pictogram } from '../src/ui/pictograms';
+import { Screen } from '../src/ui/screen';
 
 type LinkCard = {
   key: string;
@@ -116,105 +115,103 @@ export default function PlatformPage() {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <LivedBackground />
-      <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-        <View style={styles.topBar}>
-          <Pressable accessibilityRole="button" accessibilityLabel="Retour" style={styles.backPill} onPress={() => router.back()}>
-            <ArrowLeftIcon size={16} color={colors.orange} />
-            <Text style={styles.backText}>Retour</Text>
-          </Pressable>
-          <View style={styles.badge}>
-            <Text style={styles.badgeText}>Espace démo</Text>
-          </View>
+    <Screen bleed>
+      <View style={styles.topBar}>
+        <Pressable accessibilityRole="button" accessibilityLabel="Retour" style={styles.backPill} onPress={() => router.back()}>
+          <ArrowLeftIcon size={16} color={colors.orangeInk} />
+          <Text style={styles.backText}>Retour</Text>
+        </Pressable>
+        <View style={styles.badge}>
+          <Text style={styles.badgeText}>Espace démo</Text>
+        </View>
+      </View>
+
+      <View style={styles.heroCard}>
+        <Text style={styles.heroEyebrow}>Eventz brief</Text>
+        <Text style={styles.heroTitle}>Le meilleur du demo kit, condensé dans YoTicks.</Text>
+        <Text style={styles.heroText}>
+          Cette page rassemble ce qui compte vraiment dans le brief reçu: clients de référence, accès de
+          démonstration, ressources de vente et points de discussion pour le meeting.
+        </Text>
+
+        <View style={styles.statsRow}>
+          <Stat label="Clients" value="2" />
+          <Stat label="Accès démo" value="4" />
+          <Stat label="Ressources" value="3" />
         </View>
 
-        <View style={styles.heroCard}>
-          <Text style={styles.heroEyebrow}>Eventz brief</Text>
-          <Text style={styles.heroTitle}>Le meilleur du demo kit, condensé dans YoTicks.</Text>
-          <Text style={styles.heroText}>
-            Cette page rassemble ce qui compte vraiment dans le brief reçu: clients de référence, accès de
-            démonstration, ressources de vente et points de discussion pour le meeting.
-          </Text>
+        <Pressable accessibilityRole="link" accessibilityLabel="Ouvrir la démo principale" style={styles.primaryCta} onPress={() => openExternal(DEMO_SITE)}>
+          <Text style={styles.primaryCtaText}>Ouvrir la démo principale</Text>
+          <ChevronRightIcon size={16} color={colors.black} />
+        </Pressable>
+      </View>
 
-          <View style={styles.statsRow}>
-            <Stat label="Clients" value="2" />
-            <Stat label="Accès démo" value="4" />
-            <Stat label="Ressources" value="3" />
-          </View>
-
-          <Pressable accessibilityRole="link" accessibilityLabel="Ouvrir la démo principale" style={styles.primaryCta} onPress={() => openExternal(DEMO_SITE)}>
-            <Text style={styles.primaryCtaText}>Ouvrir la démo principale</Text>
-            <ChevronRightIcon size={16} color={colors.black} />
-          </Pressable>
-        </View>
-
-        <SectionTitle title="Clients actifs" subtitle="Les références à garder en tête pendant la démo." />
-        <View style={styles.clientList}>
-          {CLIENTS.map((client, index) => (
-            <View key={client.name} style={styles.clientCard}>
-              <View style={styles.clientHeader}>
-                <View>
-                  <Text style={styles.clientIndex}>0{index + 1}</Text>
-                  <Text style={styles.clientName}>{client.name}</Text>
-                </View>
-                <View style={styles.clientTag}>
-                  <Text style={styles.clientTagText}>{client.tag}</Text>
-                </View>
+      <SectionTitle title="Clients actifs" subtitle="Les références à garder en tête pendant la démo." />
+      <View style={styles.clientList}>
+        {CLIENTS.map((client, index) => (
+          <View key={client.name} style={styles.clientCard}>
+            <View style={styles.clientHeader}>
+              <View>
+                <Text style={styles.clientIndex}>0{index + 1}</Text>
+                <Text style={styles.clientName}>{client.name}</Text>
               </View>
-              <Text style={styles.clientFocus}>{client.focus}</Text>
-              <Text style={styles.clientNote}>{client.note}</Text>
+              <View style={styles.clientTag}>
+                <Text style={styles.clientTagText}>{client.tag}</Text>
+              </View>
+            </View>
+            <Text style={styles.clientFocus}>{client.focus}</Text>
+            <Text style={styles.clientNote}>{client.note}</Text>
+          </View>
+        ))}
+      </View>
+
+      <SectionTitle title="Accès démo" subtitle="Les entrées directes vers les parcours utiles." />
+      <View style={styles.linkList}>
+        {ACCESS_LINKS.map((link) => (
+          <Pressable accessibilityRole="link" accessibilityLabel={link.label} key={link.key} style={styles.linkCard} onPress={() => openExternal(link.url)}>
+            <View style={styles.linkIconWrap}>{renderIcon(link.icon)}</View>
+            <View style={styles.linkBody}>
+              <Text style={styles.linkLabel}>{link.label}</Text>
+              <Text style={styles.linkHelper}>{link.helper}</Text>
+            </View>
+            <ChevronRightIcon size={16} color={colors.textMuted} />
+          </Pressable>
+        ))}
+      </View>
+
+      <SectionTitle title="Ressources" subtitle="Matériel de vente et de partage pour accélérer la validation." />
+      <View style={styles.resourceGrid}>
+        {RESOURCES.map((resource) => (
+          <Pressable accessibilityRole="link" accessibilityLabel={resource.label} key={resource.key} style={styles.resourceCard} onPress={() => openExternal(resource.url)}>
+            <View style={styles.resourceTopRow}>
+              <View style={styles.linkIconWrap}>{renderIcon(resource.icon)}</View>
+              <ChevronRightIcon size={16} color={colors.textMuted} />
+            </View>
+            <Text style={styles.resourceLabel}>{resource.label}</Text>
+            <Text style={styles.resourceHelper}>{resource.helper}</Text>
+          </Pressable>
+        ))}
+      </View>
+
+      <SectionTitle title="Meeting prep" subtitle="Ce qu’il faut couvrir pendant l’échange." />
+      <View style={styles.meetingCard}>
+        <View style={styles.meetingHeader}>
+          <Text style={styles.meetingDate}>Monday, February 23, 2026</Text>
+          <Text style={styles.meetingStatus}>Note du brief</Text>
+        </View>
+        <View style={styles.noteList}>
+          {MEETING_NOTES.map((note) => (
+            <View key={note} style={styles.noteRow}>
+              <View style={styles.noteBullet} />
+              <Text style={styles.noteText}>{note}</Text>
             </View>
           ))}
         </View>
+      </View>
 
-        <SectionTitle title="Accès démo" subtitle="Les entrées directes vers les parcours utiles." />
-        <View style={styles.linkList}>
-          {ACCESS_LINKS.map((link) => (
-            <Pressable accessibilityRole="link" accessibilityLabel={link.label} key={link.key} style={styles.linkCard} onPress={() => openExternal(link.url)}>
-              <View style={styles.linkIconWrap}>{renderIcon(link.icon)}</View>
-              <View style={styles.linkBody}>
-                <Text style={styles.linkLabel}>{link.label}</Text>
-                <Text style={styles.linkHelper}>{link.helper}</Text>
-              </View>
-              <ChevronRightIcon size={16} color={colors.textMuted} />
-            </Pressable>
-          ))}
-        </View>
+      <View style={styles.bottomSpacer} />
 
-        <SectionTitle title="Ressources" subtitle="Matériel de vente et de partage pour accélérer la validation." />
-        <View style={styles.resourceGrid}>
-          {RESOURCES.map((resource) => (
-            <Pressable accessibilityRole="link" accessibilityLabel={resource.label} key={resource.key} style={styles.resourceCard} onPress={() => openExternal(resource.url)}>
-              <View style={styles.resourceTopRow}>
-                <View style={styles.linkIconWrap}>{renderIcon(resource.icon)}</View>
-                <ChevronRightIcon size={16} color={colors.textMuted} />
-              </View>
-              <Text style={styles.resourceLabel}>{resource.label}</Text>
-              <Text style={styles.resourceHelper}>{resource.helper}</Text>
-            </Pressable>
-          ))}
-        </View>
-
-        <SectionTitle title="Meeting prep" subtitle="Ce qu’il faut couvrir pendant l’échange." />
-        <View style={styles.meetingCard}>
-          <View style={styles.meetingHeader}>
-            <Text style={styles.meetingDate}>Monday, February 23, 2026</Text>
-            <Text style={styles.meetingStatus}>Note du brief</Text>
-          </View>
-          <View style={styles.noteList}>
-            {MEETING_NOTES.map((note) => (
-              <View key={note} style={styles.noteRow}>
-                <View style={styles.noteBullet} />
-                <Text style={styles.noteText}>{note}</Text>
-              </View>
-            ))}
-          </View>
-        </View>
-
-        <View style={styles.bottomSpacer} />
-      </ScrollView>
-    </SafeAreaView>
+    </Screen>
   );
 }
 
@@ -251,8 +248,6 @@ function renderIcon(icon: LinkCard['icon']) {
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: colors.bgDeep },
-  container: { flex: 1, paddingHorizontal: 20, paddingTop: 14 },
   topBar: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18, gap: 12 },
   backPill: {
     flexDirection: 'row',
@@ -277,7 +272,7 @@ const styles = StyleSheet.create({
   badgeText: {
     fontFamily: typography.fontFamily.medium,
     fontSize: typography.fontSize.xs,
-    color: colors.orange,
+    color: colors.orangeInk,
     textTransform: 'uppercase',
     letterSpacing: 1.4,
   },
@@ -293,7 +288,7 @@ const styles = StyleSheet.create({
   heroEyebrow: {
     fontFamily: typography.fontFamily.medium,
     fontSize: typography.fontSize.xs,
-    color: colors.orange,
+    color: colors.orangeInk,
     textTransform: 'uppercase',
     letterSpacing: 2,
   },
@@ -395,7 +390,7 @@ const styles = StyleSheet.create({
   clientTagText: {
     fontFamily: typography.fontFamily.medium,
     fontSize: typography.fontSize.xs,
-    color: colors.orange,
+    color: colors.orangeInk,
   },
   clientFocus: {
     fontFamily: typography.fontFamily.semiBold,
@@ -480,7 +475,7 @@ const styles = StyleSheet.create({
   meetingStatus: {
     fontFamily: typography.fontFamily.medium,
     fontSize: typography.fontSize.xs,
-    color: colors.orange,
+    color: colors.orangeInk,
     textTransform: 'uppercase',
     letterSpacing: 1.2,
   },

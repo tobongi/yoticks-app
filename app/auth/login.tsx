@@ -1,28 +1,44 @@
 import { useState } from 'react';
-import { Alert, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Alert, KeyboardAvoidingView, Modal, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { requestPasswordReset } from '../../src/backend';
 import { useAuth } from '../../src/auth';
 import { getPostAuthRoute } from '../../src/routing';
 import { colors } from '../../src/theme/colors';
 import { typography } from '../../src/theme/typography';
-import { ActionTile, HeroPanel, LivedBackground } from '../../src/ui/lived-in';
-import { usePhoneLayout } from '../../src/ui/responsive';
+import { radius, space, stroke } from '../../src/theme/tokens';
+import { elevation } from '../../src/theme/shadows';
+import { ActionTile, Button, SectionBlock } from '../../src/ui/lived-in';
+import { Input } from '../../src/ui/form';
+import { Screen } from '../../src/ui/screen';
+import { useLayout } from '../../src/ui/responsive';
 import { Pictogram, TicketStubArt } from '../../src/ui/pictograms';
 
+/**
+ * Sign in.
+ *
+ * Reworked around what people actually arrive here to do. The demo tiles
+ * used to sit below the fold underneath a full email/password form, even
+ * though for most visitors — and for anyone evaluating the product — they
+ * are the fastest way in. They now lead, and the credential form sits below
+ * for people who own an account.
+ *
+ * Fields gained persistent labels (a placeholder disappears the moment you
+ * type, and is not exposed as an accessible name), error text that is
+ * announced rather than only coloured, and a real busy state.
+ */
 export default function Login() {
   const { redirect } = useLocalSearchParams<{ redirect?: string }>();
   const auth = useAuth();
-  const layout = usePhoneLayout();
+  const layout = useLayout();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [pendingRole, setPendingRole] = useState<'attendee' | 'organizer' | null>(null);
   const [resetVisible, setResetVisible] = useState(false);
   const [resetEmail, setResetEmail] = useState('');
   const [resetBusy, setResetBusy] = useState(false);
-  const [devRole, setDevRole] = useState<'attendee' | 'organizer'>('attendee');
 
   const goNext = (role: 'attendee' | 'organizer') => {
     router.replace(getPostAuthRoute({ redirect, role }) as never);
@@ -30,7 +46,7 @@ export default function Login() {
 
   const handleLogin = async () => {
     if (!email.trim() || !password.trim()) {
-      setError('Email + mot de passe');
+      setError('Entre ton email et ton mot de passe.');
       return;
     }
     setBusy(true);
@@ -49,10 +65,9 @@ export default function Login() {
     if (busy) {
       return;
     }
-
     setBusy(true);
+    setPendingRole(role);
     setError('');
-    setDevRole(role);
     try {
       await auth.devLogin(role);
       goNext(role);
@@ -60,6 +75,7 @@ export default function Login() {
       setError(err instanceof Error ? err.message : 'Connexion impossible');
     } finally {
       setBusy(false);
+      setPendingRole(null);
     }
   };
 
@@ -82,72 +98,148 @@ export default function Login() {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <LivedBackground />
-        <ScrollView contentContainerStyle={[styles.content, { paddingHorizontal: layout.screenPadding, paddingTop: layout.authTopPadding }]} showsVerticalScrollIndicator={false}>
-          <Text style={styles.brand}>YOTICKS</Text>
-          <HeroPanel eyebrow="Entrer" title="Retrouve tes billets" subtitle="Email + mot de passe" art={<TicketStubArt size={96} />}>
-            <View style={styles.form}>
-              <TextInput style={styles.input} value={email} onChangeText={setEmail} placeholder="Email" placeholderTextColor={colors.textMuted} keyboardType="email-address" autoCapitalize="none" />
-              <TextInput style={styles.input} value={password} onChangeText={setPassword} placeholder="Mot de passe" placeholderTextColor={colors.textMuted} secureTextEntry />
-              {!!error ? <Text style={styles.error}>{error}</Text> : null}
-              <Pressable accessibilityRole="button" accessibilityLabel="Entrer" accessibilityState={{ disabled: busy, busy }} style={styles.primaryButton} onPress={handleLogin} disabled={busy}>
-                <Text style={styles.primaryButtonText}>{busy ? 'Connexion...' : 'Entrer'}</Text>
-              </Pressable>
-              <Pressable accessibilityRole="button" accessibilityLabel="Créer un compte" style={styles.secondaryButton} onPress={() => router.push('/auth/register')}>
-                <Text style={styles.secondaryButtonText}>Creer un compte</Text>
-              </Pressable>
-              <Pressable accessibilityRole="button" accessibilityLabel="Ouvrir la reinitialisation du mot de passe" style={styles.linkButton} onPress={() => { setResetEmail(email); setResetVisible(true); }}>
-                <Text style={styles.linkText}>Mot de passe oublie</Text>
-              </Pressable>
-            </View>
-          </HeroPanel>
-
-          <View style={styles.devBlock}>
-            <ActionTile icon={<Pictogram pictogram="profile" tone="blue" size={46} />} label="Visiteur" hint="Démo" tone="blue" onPress={() => void handleDevLogin('attendee')} style={[styles.devTile, { width: layout.tileWidth }, devRole === 'attendee' ? styles.devActive : undefined]} />
-            <ActionTile icon={<Pictogram pictogram="scan" tone="green" size={46} />} label="Organisateur" hint="Démo" tone="green" onPress={() => void handleDevLogin('organizer')} style={[styles.devTile, { width: layout.tileWidth }, devRole === 'organizer' ? styles.devActive : undefined]} />
+    <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <Screen bleed contentStyle={{ paddingTop: layout.authTopPadding }}>
+        <View style={styles.brandRow}>
+          <View style={styles.brandCopy}>
+            <Text style={styles.brand}>YOTICKS</Text>
+            <Text style={styles.brandTitle}>Retrouve tes billets</Text>
           </View>
-        </ScrollView>
+          <TicketStubArt size={84} />
+        </View>
 
-        <Modal visible={resetVisible} transparent animationType="fade" onRequestClose={() => setResetVisible(false)}>
-          <View style={styles.modalBackdrop}>
-            <Pressable accessibilityRole="button" accessibilityLabel="Fermer la fenetre de reinitialisation" style={styles.modalScrim} onPress={() => setResetVisible(false)} />
-            <View style={[styles.modalCard, { maxWidth: layout.modalCardWidth }]}>
-              <Text style={styles.modalTitle}>Retrouver mon compte</Text>
-              <Text style={styles.modalCopy}>Nous envoyons un lien à usage unique. Ton mot de passe ne change jamais sans ce lien.</Text>
-              <TextInput style={styles.input} value={resetEmail} onChangeText={setResetEmail} placeholder="Email" placeholderTextColor={colors.textMuted} autoCapitalize="none" />
-              <Pressable accessibilityRole="button" accessibilityLabel="Envoyer le lien" accessibilityState={{ disabled: resetBusy, busy: resetBusy }} style={styles.primaryButton} onPress={handleResetPassword} disabled={resetBusy}>
-                <Text style={styles.primaryButtonText}>{resetBusy ? 'Envoi...' : 'Envoyer le lien'}</Text>
-              </Pressable>
-            </View>
+        <SectionBlock eyebrow="Essayer" title="Entrer en un tap">
+          <View style={styles.demoRow}>
+            <ActionTile
+              icon={<Pictogram pictogram="profile" tone="blue" size={40} />}
+              label="Visiteur"
+              hint="Voir les sorties"
+              tone="blue"
+              accessibilityLabel="Entrer en démo comme visiteur"
+              onPress={() => void handleDevLogin('attendee')}
+              style={[styles.demoTile, pendingRole === 'attendee' && styles.demoTileBusy]}
+            />
+            <ActionTile
+              icon={<Pictogram pictogram="scan" tone="green" size={40} />}
+              label="Organisateur"
+              hint="Scanner l’entrée"
+              tone="green"
+              accessibilityLabel="Entrer en démo comme organisateur"
+              onPress={() => void handleDevLogin('organizer')}
+              style={[styles.demoTile, pendingRole === 'organizer' && styles.demoTileBusy]}
+            />
           </View>
-        </Modal>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+        </SectionBlock>
+
+        <View style={styles.dividerRow}>
+          <View style={styles.dividerLine} />
+          <Text style={styles.dividerText}>ou avec ton compte</Text>
+          <View style={styles.dividerLine} />
+        </View>
+
+        <View style={styles.form}>
+          <Input
+            label="Email"
+            value={email}
+            onChangeText={setEmail}
+            placeholder="nom@exemple.com"
+            keyboardType="email-address"
+            autoCapitalize="none"
+            autoComplete="email"
+            textContentType="emailAddress"
+          />
+          <Input
+            label="Mot de passe"
+            value={password}
+            onChangeText={setPassword}
+            placeholder="••••••••"
+            secureTextEntry
+            autoComplete="current-password"
+            textContentType="password"
+            error={error || undefined}
+          />
+
+          <Button label="Entrer" onPress={handleLogin} loading={busy && !pendingRole} buttonSize="lg" />
+          <Button label="Créer un compte" variant="secondary" onPress={() => router.push('/auth/register')} />
+          <Button
+            label="Mot de passe oublié"
+            variant="ghost"
+            buttonSize="sm"
+            accessibilityLabel="Ouvrir la réinitialisation du mot de passe"
+            onPress={() => {
+              setResetEmail(email);
+              setResetVisible(true);
+            }}
+          />
+        </View>
+      </Screen>
+
+      <Modal visible={resetVisible} transparent animationType="fade" onRequestClose={() => setResetVisible(false)}>
+        <View style={styles.modalBackdrop}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Fermer la fenêtre de réinitialisation"
+            style={styles.modalScrim}
+            onPress={() => setResetVisible(false)}
+          />
+          <View style={[styles.modalCard, { maxWidth: layout.modalCardWidth }]}>
+            <Text style={styles.modalTitle}>Retrouver mon compte</Text>
+            <Text style={styles.modalCopy}>On envoie un lien valable 30 minutes.</Text>
+            <Input
+              label="Email"
+              value={resetEmail}
+              onChangeText={setResetEmail}
+              placeholder="nom@exemple.com"
+              keyboardType="email-address"
+              autoCapitalize="none"
+            />
+            <Button label="Envoyer le lien" onPress={handleResetPassword} loading={resetBusy} />
+          </View>
+        </View>
+      </Modal>
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: colors.bgDeep },
-  container: { flex: 1, backgroundColor: colors.bgDeep },
-  content: { flexGrow: 1, paddingBottom: 32, gap: 18 },
-  brand: { fontFamily: typography.fontFamily.bold, fontSize: typography.fontSize.sm, color: colors.orange, letterSpacing: 4 },
-  form: { gap: 12 },
-  input: { borderRadius: 18, backgroundColor: colors.cardStrong, borderWidth: 1, borderColor: colors.borderStrong, paddingHorizontal: 14, paddingVertical: 14, fontFamily: typography.fontFamily.medium, fontSize: typography.fontSize.base, color: colors.text },
-  error: { fontFamily: typography.fontFamily.medium, fontSize: typography.fontSize.sm, color: colors.red, textAlign: 'center' },
-  primaryButton: { borderRadius: 18, backgroundColor: colors.orange, paddingVertical: 15, alignItems: 'center' },
-  primaryButtonText: { fontFamily: typography.fontFamily.semiBold, fontSize: typography.fontSize.base, color: colors.black },
-  secondaryButton: { borderRadius: 18, backgroundColor: colors.cardStrong, borderWidth: 1, borderColor: colors.borderStrong, paddingVertical: 15, alignItems: 'center' },
-  secondaryButtonText: { fontFamily: typography.fontFamily.semiBold, fontSize: typography.fontSize.base, color: colors.text },
-  linkButton: { alignItems: 'center', paddingVertical: 6 },
-  linkText: { fontFamily: typography.fontFamily.medium, fontSize: typography.fontSize.sm, color: colors.textMuted },
-  devBlock: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-  devTile: {},
-  devActive: { borderColor: colors.orange, backgroundColor: colors.accentWash },
-  modalBackdrop: { flex: 1, backgroundColor: 'rgba(17,17,17,0.55)', alignItems: 'center', justifyContent: 'center', padding: 20 },
+  flex: { flex: 1, backgroundColor: colors.bgDeep },
+
+  brandRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: space.md },
+  brandCopy: { flex: 1, gap: space.xs },
+  brand: { ...typography.text.eyebrow, color: colors.orangeInk, letterSpacing: 3 },
+  brandTitle: {
+    ...typography.text.display,
+    fontSize: typography.fontSize['2xl'],
+    lineHeight: 36,
+    color: colors.text,
+  },
+
+  demoRow: { flexDirection: 'row', gap: space.md },
+  demoTile: { flex: 1 },
+  demoTileBusy: { opacity: 0.6 },
+
+  dividerRow: { flexDirection: 'row', alignItems: 'center', gap: space.md },
+  dividerLine: { flex: 1, height: stroke.hairline, backgroundColor: colors.border },
+  dividerText: { ...typography.text.meta, color: colors.textMuted },
+
+  form: { gap: space.md },
+
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: colors.scrim,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: space.lg,
+  },
   modalScrim: { ...StyleSheet.absoluteFill },
-  modalCard: { width: '100%', borderRadius: 28, backgroundColor: colors.card, padding: 18, gap: 12 },
-  modalTitle: { fontFamily: typography.fontFamily.bold, fontSize: typography.fontSize.xl, color: colors.text },
-  modalCopy: { fontFamily: typography.fontFamily.regular, fontSize: typography.fontSize.sm, lineHeight: 20, color: colors.textSecondary },
+  modalCard: {
+    width: '100%',
+    borderRadius: radius.xl,
+    backgroundColor: colors.card,
+    padding: space.xl,
+    gap: space.lg,
+    ...elevation.xl,
+  },
+  modalTitle: { ...typography.text.heading, color: colors.text },
+  modalCopy: { ...typography.text.body, color: colors.textSecondary },
 });

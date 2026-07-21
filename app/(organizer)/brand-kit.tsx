@@ -1,43 +1,36 @@
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors } from '../../src/theme/colors';
 import { organizerColors } from '../../src/theme/organizer';
 import { typography } from '../../src/theme/typography';
-import { LivedBackground } from '../../src/ui/lived-in';
 import { Pictogram, TicketStubArt } from '../../src/ui/pictograms';
+import { Screen } from '../../src/ui/screen';
 
 export default function OrganizerBrandKit() {
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <LivedBackground />
-      <ScrollView style={styles.container} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <Text style={styles.kicker}>MON IMAGE</Text>
-        <Text style={styles.title}>YoTicks Organizer</Text>
-        <View style={styles.artRow}><Pictogram pictogram="art" size={94} /><TicketStubArt tone="blue" size={120} /></View>
+    <Screen bleed>
+      <Text style={styles.kicker}>MON IMAGE</Text>
+      <Text style={styles.title}>YoTicks Organizer</Text>
+      <View style={styles.artRow}><Pictogram pictogram="art" size={94} /><TicketStubArt tone="blue" size={120} /></View>
 
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>COULEURS</Text>
-          <View style={styles.swatches}><View style={[styles.swatch, { backgroundColor: colors.orange }]} /><View style={[styles.swatch, { backgroundColor: colors.yellow }]} /><View style={[styles.swatch, { backgroundColor: colors.green }]} /><View style={[styles.swatch, { backgroundColor: colors.blue }]} /></View>
-          <Text style={styles.cardValue}>Chaud • vivant • facile à voir</Text>
-        </View>
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>COULEURS</Text>
+        <View style={styles.swatches}><View style={[styles.swatch, { backgroundColor: colors.orange }]} /><View style={[styles.swatch, { backgroundColor: colors.yellow }]} /><View style={[styles.swatch, { backgroundColor: colors.green }]} /><View style={[styles.swatch, { backgroundColor: colors.blue }]} /></View>
+        <Text style={styles.cardValue}>Chaud • vivant • facile à voir</Text>
+      </View>
 
-        <Pressable accessibilityRole="button" accessibilityLabel="Retour" style={styles.backButton} onPress={() => router.back()}>
-          <Text style={styles.backText}>Retour</Text>
-        </Pressable>
-      </ScrollView>
-    </SafeAreaView>
+      <Pressable accessibilityRole="button" accessibilityLabel="Retour" style={styles.backButton} onPress={() => router.back()}>
+        <Text style={styles.backText}>Retour</Text>
+      </Pressable>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: organizerColors.background },
-  container: { flex: 1 },
-  content: { paddingHorizontal: 18, paddingTop: 14, paddingBottom: 26, gap: 14 },
   kicker: {
     fontFamily: typography.fontFamily.medium,
     fontSize: typography.fontSize.xs,
-    color: colors.orange,
+    color: colors.orangeInk,
     textTransform: 'uppercase',
     letterSpacing: 2.4,
   },
@@ -70,5 +63,5 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: organizerColors.borderStrong,
   },
-  backText: { fontFamily: typography.fontFamily.bold, fontSize: typography.fontSize.sm, color: colors.orange },
+  backText: { fontFamily: typography.fontFamily.bold, fontSize: typography.fontSize.sm, color: colors.orangeInk },
 });

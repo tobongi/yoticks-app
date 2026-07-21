@@ -49,3 +49,39 @@ export function shadow({ color, opacity, radius, offset, elevation }: ShadowSpec
     elevation: elevation ?? Math.max(1, Math.round(radius / 2)),
   };
 }
+
+/**
+ * Elevation scale.
+ *
+ * The previous shadows were neutral grey at radius 24 / opacity 0.12, which
+ * over a warm canvas produced a muddy halo rather than a lift. These are
+ * tinted with the canvas's own brown (#3A2A1E) and kept tight — a shadow's
+ * job is to say "this sits above that", not to decorate.
+ *
+ * Each level is two shadows conceptually: a tight contact shadow plus a
+ * wider ambient one. React Native only takes a single shadow per view, so we
+ * approximate with a small offset and a radius roughly 2x the offset.
+ *
+ * Rule of thumb:
+ *   flat  — content that belongs to the page (use a border instead)
+ *   sm    — cards and list rows
+ *   md    — sticky bars, raised panels
+ *   lg    — menus, popovers, the tab bar
+ *   xl    — modals and sheets
+ */
+const SHADOW_TINT = '#3A2A1E';
+
+export const elevation = {
+  /** No lift. Separate with `colors.border` instead. */
+  flat: {} as ViewStyle,
+  /** Cards, tiles, list rows. */
+  sm: shadow({ color: SHADOW_TINT, opacity: 0.06, radius: 6, offset: { width: 0, height: 2 }, elevation: 2 }),
+  /** Raised panels, sticky action bars. */
+  md: shadow({ color: SHADOW_TINT, opacity: 0.08, radius: 12, offset: { width: 0, height: 4 }, elevation: 4 }),
+  /** Tab bar, popovers, dropdowns. */
+  lg: shadow({ color: SHADOW_TINT, opacity: 0.1, radius: 20, offset: { width: 0, height: 8 }, elevation: 8 }),
+  /** Modals and bottom sheets. */
+  xl: shadow({ color: SHADOW_TINT, opacity: 0.16, radius: 32, offset: { width: 0, height: 14 }, elevation: 14 }),
+} as const;
+
+export type ElevationLevel = keyof typeof elevation;

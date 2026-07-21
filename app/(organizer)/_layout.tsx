@@ -43,7 +43,7 @@ export default function OrganizerLayout() {
           paddingTop: 12,
           ...shadow({ color: '#000', opacity: 0.06, radius: 14, offset: { width: 0, height: -6 }, elevation: 8 }),
         },
-        tabBarActiveTintColor: colors.orange,
+        tabBarActiveTintColor: colors.orangeInk,
         tabBarInactiveTintColor: organizerColors.textMuted,
         tabBarLabelStyle: {
           fontFamily: typography.fontFamily.medium,

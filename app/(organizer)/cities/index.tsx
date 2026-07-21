@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Link, router } from 'expo-router';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors } from '../../../src/theme/colors';
 import { organizerColors } from '../../../src/theme/organizer';
 import { shadow } from '../../../src/theme/shadows';
@@ -10,8 +9,8 @@ import { FALLBACK_EVENTS, listOrganizerEvents, type BackendEvent } from '../../.
 import { groupEventsByCity, type CityGroup } from '../../../src/cities';
 import { ArrowLeftIcon, CalendarIcon, ChevronRightIcon, MapIcon } from '../../../src/icons';
 import { useAuth } from '../../../src/auth';
-import { LivedBackground } from '../../../src/ui/lived-in';
 import { Pictogram } from '../../../src/ui/pictograms';
+import { Screen } from '../../../src/ui/screen';
 
 export default function OrganizerCities() {
   const { user, token } = useAuth();
@@ -34,88 +33,85 @@ export default function OrganizerCities() {
   const totalPaidEvents = events.filter((event) => event.price !== 'Gratuit').length;
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <LivedBackground />
-      <ScrollView style={styles.container} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <View style={styles.topRow}>
-          <Pressable
-            style={styles.backButton}
+    <Screen bleed>
+      <View style={styles.topRow}>
+        <Pressable
+          style={styles.backButton}
+          accessibilityRole="button"
+          accessibilityLabel="Back to organizer dashboard"
+          onPress={() => {
+            if (typeof router.canGoBack === 'function' && router.canGoBack()) {
+              router.back();
+              return;
+            }
+            router.replace('/(organizer)' as never);
+          }}
+        >
+          <ArrowLeftIcon size={16} color={organizerColors.text} />
+        </Pressable>
+        <View style={styles.topCopy}>
+          <Text style={styles.kicker}>Villes</Text>
+          <Text style={styles.title}>Où sont les billets ?</Text>
+        </View>
+      </View>
+
+      <View style={styles.heroCard}>
+        <View style={styles.heroPill}>
+          <Pictogram pictogram="map" tone="yellow" size={52} />
+          <Text style={styles.heroPillText}>CARTE EN DIRECT</Text>
+        </View>
+
+        <View style={styles.metricRow}>
+          <Metric label="Villes" value={String(liveCities)} />
+          <Metric label="Sorties" value={String(totalEvents)} />
+          <Metric label="Payants" value={String(totalPaidEvents)} />
+        </View>
+      </View>
+
+      <View style={styles.highlightCard}>
+        <View style={styles.highlightHeader}>
+          <View style={styles.highlightIcon}>
+            <MapIcon size={16} color={colors.orangeInk} />
+          </View>
+          <View style={styles.highlightCopy}>
+            <Text style={styles.highlightLabel}>Ville forte</Text>
+            <Text style={styles.highlightTitle}>{topCity?.label ?? 'Aucune ville'}</Text>
+          </View>
+        </View>
+        <Text style={styles.highlightMeta}>
+          {topCity ? `${topCity.count} live event${topCity.count === 1 ? '' : 's'} in this city` : 'Add events to start building a city map.'}
+        </Text>
+      </View>
+
+      <View style={styles.sectionHeader}>
+        <Text style={styles.sectionTitle}>Toutes les villes</Text>
+      </View>
+
+      <View style={styles.list}>
+        {cityGroups.map((group) => (
+          <Link
+            key={group.key}
+            href={`/(organizer)/cities/${group.key}` as never}
             accessibilityRole="button"
-            accessibilityLabel="Back to organizer dashboard"
-            onPress={() => {
-              if (typeof router.canGoBack === 'function' && router.canGoBack()) {
-                router.back();
-                return;
-              }
-              router.replace('/(organizer)' as never);
-            }}
+            accessibilityLabel={`Open ${group.label} city details`}
+            style={styles.cityCard}
           >
-            <ArrowLeftIcon size={16} color={organizerColors.text} />
-          </Pressable>
-          <View style={styles.topCopy}>
-            <Text style={styles.kicker}>Villes</Text>
-            <Text style={styles.title}>Où sont les billets ?</Text>
-          </View>
-        </View>
-
-        <View style={styles.heroCard}>
-          <View style={styles.heroPill}>
-            <Pictogram pictogram="map" tone="yellow" size={52} />
-            <Text style={styles.heroPillText}>CARTE EN DIRECT</Text>
-          </View>
-
-          <View style={styles.metricRow}>
-            <Metric label="Villes" value={String(liveCities)} />
-            <Metric label="Sorties" value={String(totalEvents)} />
-            <Metric label="Payants" value={String(totalPaidEvents)} />
-          </View>
-        </View>
-
-        <View style={styles.highlightCard}>
-          <View style={styles.highlightHeader}>
-            <View style={styles.highlightIcon}>
-              <MapIcon size={16} color={colors.orange} />
+            <View style={styles.cityIcon}>
+              <CalendarIcon size={14} color={colors.orangeInk} />
             </View>
-            <View style={styles.highlightCopy}>
-              <Text style={styles.highlightLabel}>Ville forte</Text>
-              <Text style={styles.highlightTitle}>{topCity?.label ?? 'Aucune ville'}</Text>
+            <View style={styles.cityBody}>
+              <View style={styles.cityHeader}>
+                <Text style={styles.cityName}>{group.label}</Text>
+                <Text style={styles.cityCount}>{group.count} live</Text>
+              </View>
+              <Text style={styles.cityMeta}>{group.events.map((event) => event.category).join(' · ')}</Text>
+              <Text style={styles.cityEvent}>{group.events[0]?.title}</Text>
             </View>
-          </View>
-          <Text style={styles.highlightMeta}>
-            {topCity ? `${topCity.count} live event${topCity.count === 1 ? '' : 's'} in this city` : 'Add events to start building a city map.'}
-          </Text>
-        </View>
-
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Toutes les villes</Text>
-        </View>
-
-        <View style={styles.list}>
-          {cityGroups.map((group) => (
-            <Link
-              key={group.key}
-              href={`/(organizer)/cities/${group.key}` as never}
-              accessibilityRole="button"
-              accessibilityLabel={`Open ${group.label} city details`}
-              style={styles.cityCard}
-            >
-              <View style={styles.cityIcon}>
-                <CalendarIcon size={14} color={colors.orange} />
-              </View>
-              <View style={styles.cityBody}>
-                <View style={styles.cityHeader}>
-                  <Text style={styles.cityName}>{group.label}</Text>
-                  <Text style={styles.cityCount}>{group.count} live</Text>
-                </View>
-                <Text style={styles.cityMeta}>{group.events.map((event) => event.category).join(' · ')}</Text>
-                <Text style={styles.cityEvent}>{group.events[0]?.title}</Text>
-              </View>
-              <ChevronRightIcon size={16} color={organizerColors.textMuted} />
-            </Link>
-          ))}
-        </View>
-      </ScrollView>
-    </SafeAreaView>
+            <ChevronRightIcon size={16} color={organizerColors.textMuted} />
+          </Link>
+        ))}
+      </View>
+    </Screen>
   );
 }
 
@@ -129,9 +125,6 @@ function Metric({ label, value }: { label: string; value: string }) {
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: organizerColors.background },
-  container: { flex: 1 },
-  content: { paddingHorizontal: 18, paddingTop: 14, paddingBottom: 26, gap: 14 },
   topRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
   backButton: {
     width: 44,
@@ -147,7 +140,7 @@ const styles = StyleSheet.create({
   kicker: {
     fontFamily: typography.fontFamily.medium,
     fontSize: typography.fontSize.xs,
-    color: colors.orange,
+    color: colors.orangeInk,
     textTransform: 'uppercase',
     letterSpacing: 2.4,
   },
@@ -179,7 +172,7 @@ const styles = StyleSheet.create({
   heroPillText: {
     fontFamily: typography.fontFamily.medium,
     fontSize: typography.fontSize.xs,
-    color: colors.orange,
+    color: colors.orangeInk,
     textTransform: 'uppercase',
     letterSpacing: 1.5,
   },
@@ -289,7 +282,7 @@ const styles = StyleSheet.create({
   cityCount: {
     fontFamily: typography.fontFamily.medium,
     fontSize: typography.fontSize.xs,
-    color: colors.orange,
+    color: colors.orangeInk,
     textTransform: 'uppercase',
     letterSpacing: 1.1,
   },

@@ -1,8 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, TextInput, View, Vibration } from 'react-native';
+import { Pressable, StyleSheet, Text, TextInput, View, Vibration } from 'react-native';
 import { router } from 'expo-router';
 import { CameraView, useCameraPermissions, type BarcodeScanningResult } from 'expo-camera';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors } from '../../src/theme/colors';
 import { organizerColors } from '../../src/theme/organizer';
 import { typography } from '../../src/theme/typography';
@@ -18,10 +17,11 @@ import {
 import { buildAttendanceTierCards } from '../../src/organizer/scan-attendance';
 import { shouldUseFallbackScanStats } from '../../src/organizer/scan-stats';
 import { buildScanValidationDetails, type ScanValidationDetails } from '../../src/organizer/scan-validation';
-import { useLiveRefresh } from '../../src/live-refresh';
+import { REFRESH, useLiveRefresh } from '../../src/live-refresh';
 import { Pictogram, StatusSeal } from '../../src/ui/pictograms';
 import { SpeakButton } from '../../src/ui/speak-button';
 import { getScanOutcomeVisual } from '../../src/ui/visual-language';
+import { Screen } from '../../src/ui/screen';
 
 const GATE_OPTIONS = ['Entrée principale', 'Entrée nord', 'Entrée sud', 'Entrée ouest', 'Entrée VIP'];
 
@@ -44,7 +44,7 @@ export default function OrganizerScan() {
   const [lastResult, setLastResult] = useState<BackendOrganizerTicketScanResult | null>(null);
   const [feedback, setFeedback] = useState('Prêt');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const refreshTick = useLiveRefresh(2200);
+  const refreshTick = useLiveRefresh(REFRESH.live);
 
   useEffect(() => {
     if (!user) {
@@ -103,7 +103,7 @@ export default function OrganizerScan() {
       },
       {
         key: 'waiting',
-        icon: <ClipboardIcon size={18} color={colors.orange} />,
+        icon: <ClipboardIcon size={18} color={colors.orangeInk} />,
         value: String(stats.pending),
         label: 'Attente',
         tone: 'warning' as const,
@@ -138,7 +138,7 @@ export default function OrganizerScan() {
           break;
         case 'already_used':
           Vibration.vibrate([50, 100, 50]);
-          setFeedback('Deja scanne');
+          setFeedback('Déjà scanné');
           setScannerActive(false);
           break;
         case 'cancelled':
@@ -190,232 +190,227 @@ export default function OrganizerScan() {
   }
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <View style={styles.backdropOrbA} />
-      <View style={styles.backdropOrbB} />
-
-      <ScrollView style={styles.container} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <View style={styles.heroCard}>
-          <View style={styles.heroTopRow}>
-            <View style={styles.heroBadge}>
-              <Pictogram pictogram="scan" tone="green" size={44} />
-              <Text style={styles.heroBadgeText}>SCANNER</Text>
-            </View>
-            <View style={[styles.liveChip, scannerActive && styles.liveChipActive]}>
-              <View style={[styles.liveDot, scannerActive && styles.liveDotActive]} />
-              <Text style={[styles.liveChipText, scannerActive && styles.liveChipTextActive]}>
-                {scannerActive ? 'EN DIRECT' : 'PRÊT'}
-              </Text>
-            </View>
+    <Screen>
+      <View style={styles.heroCard}>
+        <View style={styles.heroTopRow}>
+          <View style={styles.heroBadge}>
+            <Pictogram pictogram="scan" tone="green" size={44} />
+            <Text style={styles.heroBadgeText}>SCANNER</Text>
           </View>
-
-          <Text style={styles.title}>Entree rapide</Text>
-          <Text style={styles.subline}>QR d'abord, code si besoin.</Text>
-          <SpeakButton instruction="Place le code QR au centre du cadre. Si le scan échoue, entre le code du billet." label="Mode d'emploi" />
-
-          <View style={styles.scanFrame}>
-            {scannerActive ? (
-              <CameraView
-                active={scannerActive}
-                style={styles.camera}
-                facing="back"
-                enableTorch={torchOn}
-                barcodeScannerSettings={{ barcodeTypes: ['qr'] }}
-                onBarcodeScanned={handleBarcodeScanned}
-              />
-            ) : (
-              <View style={styles.cameraPlaceholder}>
-                <View style={styles.cameraIconShell}><Pictogram pictogram="scan" tone="green" size={152} label="Scanner un code QR" /></View>
-                <View style={styles.cameraHintRow}>
-                  <SparkIcon size={16} color={colors.orange} />
-                  <Text style={styles.placeholderText}>{feedback}</Text>
-                </View>
-              </View>
-            )}
-
-            <Pressable accessibilityRole="button" accessibilityLabel={torchOn ? 'Éteindre la lampe' : 'Allumer la lampe'} accessibilityState={{ checked: torchOn }} style={styles.torchButton} onPress={() => setTorchOn(!torchOn)}>
-              <SparkIcon size={16} color={torchOn ? colors.orange : organizerColors.text} />
-            </Pressable>
-          </View>
-
-          <View style={styles.primaryActions}>
-            <Pressable accessibilityRole="button" accessibilityLabel="Ouvrir le scanner" accessibilityState={{ disabled: isSubmitting, busy: isSubmitting }} style={[styles.bigAction, styles.bigActionPrimary, isSubmitting && styles.actionDisabled]} onPress={handleStartScanner} disabled={isSubmitting}>
-              <Pictogram pictogram="scan" tone="green" size={48} />
-              <Text style={styles.bigActionPrimaryText}>{scannerActive ? 'CAMÉRA OUVERTE' : 'SCANNER'}</Text>
-            </Pressable>
-
-            <Pressable accessibilityRole="button" accessibilityLabel="Ouvrir les billets" style={styles.bigAction} onPress={() => router.push('/(organizer)/tickets' as never)}>
-              <TicketIcon size={18} color={organizerColors.text} />
-              <Text style={styles.bigActionText}>Billets</Text>
-            </Pressable>
+          <View style={[styles.liveChip, scannerActive && styles.liveChipActive]}>
+            <View style={[styles.liveDot, scannerActive && styles.liveDotActive]} />
+            <Text style={[styles.liveChipText, scannerActive && styles.liveChipTextActive]}>
+              {scannerActive ? 'EN DIRECT' : 'PRÊT'}
+            </Text>
           </View>
         </View>
 
-        {validationDetails ? (
-          <View style={[styles.validationCard, validationDetails.outcome === 'checked_in' ? styles.validationCardSuccess : styles.validationCardWarning]}>
-            <View style={styles.validationHeader}>
-              <StatusSeal pictogram={resultVisual?.key ?? 'history'} tone={resultVisual?.tone ?? 'yellow'} label={resultVisual?.label ?? 'SCAN'} hint={resultVisual?.hint} size={92} />
-              <View style={styles.validationHeaderBody}>
-                <Text style={styles.validationEyebrow}>Validation de passage</Text>
-                <Text style={styles.validationTitle}>{validationDetails.holderName}</Text>
-                <Text style={styles.validationCode}>{validationDetails.code}</Text>
+        <Text style={styles.title}>Entree rapide</Text>
+        <Text style={styles.subline}>QR d'abord, code si besoin.</Text>
+        <SpeakButton instruction="Place le code QR au centre du cadre. Si le scan échoue, entre le code du billet." label="Mode d'emploi" />
+
+        <View style={styles.scanFrame}>
+          {scannerActive ? (
+            <CameraView
+              active={scannerActive}
+              style={styles.camera}
+              facing="back"
+              enableTorch={torchOn}
+              barcodeScannerSettings={{ barcodeTypes: ['qr'] }}
+              onBarcodeScanned={handleBarcodeScanned}
+            />
+          ) : (
+            <View style={styles.cameraPlaceholder}>
+              <View style={styles.cameraIconShell}><Pictogram pictogram="scan" tone="green" size={152} label="Scanner un code QR" /></View>
+              <View style={styles.cameraHintRow}>
+                <SparkIcon size={16} color={colors.orangeInk} />
+                <Text style={styles.placeholderText}>{feedback}</Text>
               </View>
             </View>
+          )}
 
-            <View style={styles.validationGrid}>
-              <ValidationRow label="Événement" value={validationDetails.eventTitle} />
-              <ValidationRow label="Date de l'événement" value={validationDetails.eventDate} />
-              <ValidationRow label="Lieu de l'événement" value={validationDetails.eventLocation} />
-              <ValidationRow label="Organisateur" value={validationDetails.eventOrganizer} />
-              <ValidationRow label="Place / catégorie" value={`${validationDetails.seat} · ${validationDetails.ticketTier}`} />
-              <ValidationRow label="Montant du billet" value={validationDetails.pricePaidLabel} />
-              <ValidationRow label="Porte / lieu du scan" value={validationDetails.gate} />
-              <ValidationRow label="Jour et heure" value={validationDetails.scannedAtLabel} />
-              <ValidationRow label="Heure serveur exacte" value={validationDetails.scannedAtIso} />
-              <ValidationRow label="Scanné par" value={`${validationDetails.scannerName} · ${validationDetails.scannerRole}`} />
-              <ValidationRow label="Source" value={validationDetails.sourceLabel} />
-              <ValidationRow label="Identifiant de contrôle" value={validationDetails.auditId} />
-            </View>
-
-            <Pressable accessibilityRole="button" accessibilityLabel="Scanner le billet suivant" style={styles.nextScanAction} onPress={() => void handleNextScan()}>
-              <Pictogram pictogram="scan" tone="green" size={26} />
-              <Text style={styles.nextScanActionText}>Scanner le billet suivant</Text>
-            </Pressable>
-          </View>
-        ) : null}
-
-        <View style={styles.summaryRow}>
-          {summaryTiles.map((tile) => (
-            <SummaryTile key={tile.key} icon={tile.icon} value={tile.value} label={tile.label} tone={tile.tone} />
-          ))}
-        </View>
-
-        <View style={styles.attendanceCard}>
-          <View style={styles.sectionRow}>
-            <View>
-              <Text style={styles.sectionEyebrow}>Dans la salle</Text>
-              <Text style={styles.sectionTitle}>{stats.usedTickets} / {stats.totalTickets}</Text>
-            </View>
-            <View style={styles.scanRatePill}>
-              <SparkIcon size={12} color={colors.orange} />
-              <Text style={styles.scanRateText}>{stats.scans}%</Text>
-            </View>
-          </View>
-
-          <View style={styles.tierList}>
-            {attendanceCards.map((tier) => {
-              const barWidth = `${Math.max(tier.scanRate, tier.total > 0 ? 8 : 0)}%` as const;
-              const isVip = tier.key.toLowerCase().includes('vip');
-              return (
-                <View key={tier.key} style={styles.tierCard}>
-                  <View style={styles.tierTopRow}>
-                    <View style={styles.tierLead}>
-                      <View style={[styles.tierIconShell, isVip && styles.tierIconShellVip]}>
-                        {isVip ? (
-                          <SparkIcon size={16} color={isVip ? colors.black : colors.orange} />
-                        ) : (
-                          <TicketIcon size={16} color={colors.orange} />
-                        )}
-                      </View>
-                      <View>
-                        <Text style={styles.tierName}>{tier.name}</Text>
-                        <Text style={styles.tierMeta}>
-                          {tier.checkedIn} / {tier.total}
-                        </Text>
-                      </View>
-                    </View>
-                    <Text style={styles.tierRate}>{tier.scanRate}%</Text>
-                  </View>
-
-                  <View style={styles.tierTrack}>
-                    <View style={[styles.tierFill, { width: barWidth }]} />
-                  </View>
-
-                  <View style={styles.tierCounts}>
-                    <MiniCount icon={<ClipboardIcon size={12} color={colors.orange} />} value={tier.waiting} />
-                    <MiniCount icon={<CloseIcon size={12} color={colors.red} />} value={tier.cancelled} />
-                    <MiniCount icon={<UserIcon size={12} color={organizerColors.success} />} value={tier.checkedIn} />
-                  </View>
-                </View>
-              );
-            })}
-          </View>
-        </View>
-
-        <View style={styles.gateCard}>
-          <View style={styles.sectionRow}>
-            <View>
-              <Text style={styles.sectionEyebrow}>Porte</Text>
-              <Text style={styles.sectionTitleSmall}>{gate}</Text>
-            </View>
-            <Text style={styles.sectionMeta}>{stats.queued} en attente</Text>
-          </View>
-
-          <View style={styles.gateChips}>
-            {GATE_OPTIONS.map((option) => {
-              const active = gate === option;
-              return (
-                <Pressable accessibilityRole="button" accessibilityLabel={`Porte ${option}`} accessibilityState={{ selected: active }} key={option} style={[styles.gateChip, active && styles.gateChipActive]} onPress={() => setGate(option)}>
-                  <Text style={[styles.gateChipText, active && styles.gateChipTextActive]}>{option}</Text>
-                </Pressable>
-              );
-            })}
-          </View>
-        </View>
-
-        <View style={styles.manualCard}>
-          <View style={styles.sectionRow}>
-            <View>
-              <Text style={styles.sectionEyebrow}>Code</Text>
-              <Text style={styles.sectionTitleSmall}>Entrer le billet</Text>
-            </View>
-            <View style={styles.feedbackChip}>
-              <Text style={styles.feedbackChipText}>{feedback}</Text>
-            </View>
-          </View>
-
-          <TextInput
-            style={styles.manualInput}
-            value={manualCode}
-            onChangeText={setManualCode}
-            placeholder="YT-2026-004"
-            placeholderTextColor={organizerColors.textMuted}
-            autoCorrect={false}
-            autoCapitalize="characters"
-          />
-
-          <Pressable accessibilityRole="button" accessibilityLabel="Valider le code du billet" accessibilityState={{ disabled: !manualCode.trim() || isSubmitting, busy: isSubmitting }}
-            style={[styles.submitAction, (!manualCode.trim() || isSubmitting) && styles.actionDisabled]}
-            onPress={() => void submitScan(manualCode, 'manual')}
-            disabled={!manualCode.trim() || isSubmitting}
-          >
-            <TicketIcon size={16} color={colors.black} />
-            <Text style={styles.submitActionText}>{isSubmitting ? '...' : 'Verifier'}</Text>
+          <Pressable accessibilityRole="button" accessibilityLabel={torchOn ? 'Éteindre la lampe' : 'Allumer la lampe'} accessibilityState={{ checked: torchOn }} style={styles.torchButton} onPress={() => setTorchOn(!torchOn)}>
+            <SparkIcon size={16} color={torchOn ? colors.orange : organizerColors.text} />
           </Pressable>
         </View>
 
-        {lastResult && resultVisual && !validationDetails ? (
-          <View
-            style={[
-              styles.resultCard,
-              lastResult.outcome === 'checked_in'
-                ? styles.resultCardSuccess
-                : lastResult.outcome === 'cancelled'
-                  ? styles.resultCardDanger
-                  : styles.resultCardWarning,
-            ]}
-          >
-            <View style={styles.resultTopRow}>
-              <StatusSeal pictogram={resultVisual.key} tone={resultVisual.tone} label={resultVisual.label} hint={resultVisual.hint} size={104} />
-              <View style={styles.resultBody}>
-                <Text style={styles.resultTitle}>{lastResult.ticket?.holderName ?? 'Billet inconnu'}</Text>
-                <Text style={styles.resultMeta}>{lastResult.ticket?.code ?? 'Entrer le code à la main'}</Text>
-              </View>
+        <View style={styles.primaryActions}>
+          <Pressable accessibilityRole="button" accessibilityLabel="Ouvrir le scanner" accessibilityState={{ disabled: isSubmitting, busy: isSubmitting }} style={[styles.bigAction, styles.bigActionPrimary, isSubmitting && styles.actionDisabled]} onPress={handleStartScanner} disabled={isSubmitting}>
+            <Pictogram pictogram="scan" tone="green" size={48} />
+            <Text style={styles.bigActionPrimaryText}>{scannerActive ? 'CAMÉRA OUVERTE' : 'SCANNER'}</Text>
+          </Pressable>
+
+          <Pressable accessibilityRole="button" accessibilityLabel="Ouvrir les billets" style={styles.bigAction} onPress={() => router.push('/(organizer)/tickets' as never)}>
+            <TicketIcon size={18} color={organizerColors.text} />
+            <Text style={styles.bigActionText}>Billets</Text>
+          </Pressable>
+        </View>
+      </View>
+
+      {validationDetails ? (
+        <View style={[styles.validationCard, validationDetails.outcome === 'checked_in' ? styles.validationCardSuccess : styles.validationCardWarning]}>
+          <View style={styles.validationHeader}>
+            <StatusSeal pictogram={resultVisual?.key ?? 'history'} tone={resultVisual?.tone ?? 'yellow'} label={resultVisual?.label ?? 'SCAN'} hint={resultVisual?.hint} size={92} />
+            <View style={styles.validationHeaderBody}>
+              <Text style={styles.validationEyebrow}>Validation de passage</Text>
+              <Text style={styles.validationTitle}>{validationDetails.holderName}</Text>
+              <Text style={styles.validationCode}>{validationDetails.code}</Text>
             </View>
           </View>
-        ) : null}
-      </ScrollView>
-    </SafeAreaView>
+
+          <View style={styles.validationGrid}>
+            <ValidationRow label="Événement" value={validationDetails.eventTitle} />
+            <ValidationRow label="Date de l'événement" value={validationDetails.eventDate} />
+            <ValidationRow label="Lieu de l'événement" value={validationDetails.eventLocation} />
+            <ValidationRow label="Organisateur" value={validationDetails.eventOrganizer} />
+            <ValidationRow label="Place / catégorie" value={`${validationDetails.seat} · ${validationDetails.ticketTier}`} />
+            <ValidationRow label="Montant du billet" value={validationDetails.pricePaidLabel} />
+            <ValidationRow label="Porte / lieu du scan" value={validationDetails.gate} />
+            <ValidationRow label="Jour et heure" value={validationDetails.scannedAtLabel} />
+            <ValidationRow label="Heure serveur exacte" value={validationDetails.scannedAtIso} />
+            <ValidationRow label="Scanné par" value={`${validationDetails.scannerName} · ${validationDetails.scannerRole}`} />
+            <ValidationRow label="Source" value={validationDetails.sourceLabel} />
+            <ValidationRow label="Identifiant de contrôle" value={validationDetails.auditId} />
+          </View>
+
+          <Pressable accessibilityRole="button" accessibilityLabel="Scanner le billet suivant" style={styles.nextScanAction} onPress={() => void handleNextScan()}>
+            <Pictogram pictogram="scan" tone="green" size={26} />
+            <Text style={styles.nextScanActionText}>Scanner le billet suivant</Text>
+          </Pressable>
+        </View>
+      ) : null}
+
+      <View style={styles.summaryRow}>
+        {summaryTiles.map((tile) => (
+          <SummaryTile key={tile.key} icon={tile.icon} value={tile.value} label={tile.label} tone={tile.tone} />
+        ))}
+      </View>
+
+      <View style={styles.attendanceCard}>
+        <View style={styles.sectionRow}>
+          <View>
+            <Text style={styles.sectionEyebrow}>Dans la salle</Text>
+            <Text style={styles.sectionTitle}>{stats.usedTickets} / {stats.totalTickets}</Text>
+          </View>
+          <View style={styles.scanRatePill}>
+            <SparkIcon size={12} color={colors.orangeInk} />
+            <Text style={styles.scanRateText}>{stats.scans}%</Text>
+          </View>
+        </View>
+
+        <View style={styles.tierList}>
+          {attendanceCards.map((tier) => {
+            const barWidth = `${Math.max(tier.scanRate, tier.total > 0 ? 8 : 0)}%` as const;
+            const isVip = tier.key.toLowerCase().includes('vip');
+            return (
+              <View key={tier.key} style={styles.tierCard}>
+                <View style={styles.tierTopRow}>
+                  <View style={styles.tierLead}>
+                    <View style={[styles.tierIconShell, isVip && styles.tierIconShellVip]}>
+                      {isVip ? (
+                        <SparkIcon size={16} color={isVip ? colors.black : colors.orange} />
+                      ) : (
+                        <TicketIcon size={16} color={colors.orangeInk} />
+                      )}
+                    </View>
+                    <View>
+                      <Text style={styles.tierName}>{tier.name}</Text>
+                      <Text style={styles.tierMeta}>
+                        {tier.checkedIn} / {tier.total}
+                      </Text>
+                    </View>
+                  </View>
+                  <Text style={styles.tierRate}>{tier.scanRate}%</Text>
+                </View>
+
+                <View style={styles.tierTrack}>
+                  <View style={[styles.tierFill, { width: barWidth }]} />
+                </View>
+
+                <View style={styles.tierCounts}>
+                  <MiniCount icon={<ClipboardIcon size={12} color={colors.orangeInk} />} value={tier.waiting} />
+                  <MiniCount icon={<CloseIcon size={12} color={colors.red} />} value={tier.cancelled} />
+                  <MiniCount icon={<UserIcon size={12} color={organizerColors.success} />} value={tier.checkedIn} />
+                </View>
+              </View>
+            );
+          })}
+        </View>
+      </View>
+
+      <View style={styles.gateCard}>
+        <View style={styles.sectionRow}>
+          <View>
+            <Text style={styles.sectionEyebrow}>Porte</Text>
+            <Text style={styles.sectionTitleSmall}>{gate}</Text>
+          </View>
+          <Text style={styles.sectionMeta}>{stats.queued} en attente</Text>
+        </View>
+
+        <View style={styles.gateChips}>
+          {GATE_OPTIONS.map((option) => {
+            const active = gate === option;
+            return (
+              <Pressable accessibilityRole="button" accessibilityLabel={`Porte ${option}`} accessibilityState={{ selected: active }} key={option} style={[styles.gateChip, active && styles.gateChipActive]} onPress={() => setGate(option)}>
+                <Text style={[styles.gateChipText, active && styles.gateChipTextActive]}>{option}</Text>
+              </Pressable>
+            );
+          })}
+        </View>
+      </View>
+
+      <View style={styles.manualCard}>
+        <View style={styles.sectionRow}>
+          <View>
+            <Text style={styles.sectionEyebrow}>Code</Text>
+            <Text style={styles.sectionTitleSmall}>Entrer le billet</Text>
+          </View>
+          <View style={styles.feedbackChip}>
+            <Text style={styles.feedbackChipText}>{feedback}</Text>
+          </View>
+        </View>
+
+        <TextInput
+          style={styles.manualInput}
+          value={manualCode}
+          onChangeText={setManualCode}
+          placeholder="YT-2026-004"
+          placeholderTextColor={organizerColors.textMuted}
+          autoCorrect={false}
+          autoCapitalize="characters"
+        />
+
+        <Pressable accessibilityRole="button" accessibilityLabel="Valider le code du billet" accessibilityState={{ disabled: !manualCode.trim() || isSubmitting, busy: isSubmitting }}
+          style={[styles.submitAction, (!manualCode.trim() || isSubmitting) && styles.actionDisabled]}
+          onPress={() => void submitScan(manualCode, 'manual')}
+          disabled={!manualCode.trim() || isSubmitting}
+        >
+          <TicketIcon size={16} color={colors.black} />
+          <Text style={styles.submitActionText}>{isSubmitting ? '...' : 'Verifier'}</Text>
+        </Pressable>
+      </View>
+
+      {lastResult && resultVisual && !validationDetails ? (
+        <View
+          style={[
+            styles.resultCard,
+            lastResult.outcome === 'checked_in'
+              ? styles.resultCardSuccess
+              : lastResult.outcome === 'cancelled'
+                ? styles.resultCardDanger
+                : styles.resultCardWarning,
+          ]}
+        >
+          <View style={styles.resultTopRow}>
+            <StatusSeal pictogram={resultVisual.key} tone={resultVisual.tone} label={resultVisual.label} hint={resultVisual.hint} size={104} />
+            <View style={styles.resultBody}>
+              <Text style={styles.resultTitle}>{lastResult.ticket?.holderName ?? 'Billet inconnu'}</Text>
+              <Text style={styles.resultMeta}>{lastResult.ticket?.code ?? 'Entrer le code à la main'}</Text>
+            </View>
+          </View>
+        </View>
+      ) : null}
+    </Screen>
   );
 }
 
@@ -463,7 +458,6 @@ function ValidationRow({ label, value }: { label: string; value: string }) {
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: organizerColors.background },
   backdropOrbA: {
     position: 'absolute',
     top: -40,
@@ -482,8 +476,6 @@ const styles = StyleSheet.create({
     borderRadius: 140,
     backgroundColor: 'rgba(255,197,22,0.10)',
   },
-  container: { flex: 1 },
-  content: { paddingHorizontal: 16, paddingTop: 12, paddingBottom: 28, gap: 14 },
   heroCard: {
     gap: 14,
     padding: 18,
@@ -505,7 +497,7 @@ const styles = StyleSheet.create({
   heroBadgeText: {
     fontFamily: typography.fontFamily.bold,
     fontSize: typography.fontSize.xs,
-    color: colors.orange,
+    color: colors.orangeInk,
     textTransform: 'uppercase',
     letterSpacing: 1.2,
   },
@@ -709,7 +701,7 @@ const styles = StyleSheet.create({
   sectionEyebrow: {
     fontFamily: typography.fontFamily.medium,
     fontSize: typography.fontSize.xs,
-    color: colors.orange,
+    color: colors.orangeInk,
     textTransform: 'uppercase',
     letterSpacing: 1.2,
   },
@@ -742,7 +734,7 @@ const styles = StyleSheet.create({
   scanRateText: {
     fontFamily: typography.fontFamily.bold,
     fontSize: typography.fontSize.sm,
-    color: colors.orange,
+    color: colors.orangeInk,
   },
   tierList: { gap: 10 },
   tierCard: {
@@ -788,7 +780,7 @@ const styles = StyleSheet.create({
   tierRate: {
     fontFamily: typography.fontFamily.bold,
     fontSize: typography.fontSize.base,
-    color: colors.orange,
+    color: colors.orangeInk,
   },
   tierTrack: {
     height: 10,
@@ -953,7 +945,7 @@ const styles = StyleSheet.create({
   validationEyebrow: {
     fontFamily: typography.fontFamily.bold,
     fontSize: typography.fontSize.xs,
-    color: colors.orange,
+    color: colors.orangeInk,
     textTransform: 'uppercase',
     letterSpacing: 1.1,
   },

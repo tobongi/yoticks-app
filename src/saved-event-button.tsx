@@ -89,6 +89,6 @@ const styles = StyleSheet.create({
     color: colors.black,
   },
   labelUnsaved: {
-    color: colors.orange,
+    color: colors.orangeInk,
   },
 });
